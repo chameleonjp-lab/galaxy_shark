@@ -1,37 +1,48 @@
 name: Deploy GALAXY SHARK to GitHub Pages
 
 on:
+  pull_request:
+    paths:
+      - index.html
+      - .github/workflows/pages.yml
   push:
     branches: ['**']
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
-  group: github-pages
+  group: github-pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    if: github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch
+  prepare:
+    if: github.event_name == 'pull_request' || (github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch)
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/configure-pages@v5
       - name: Prepare site
-        run: |
-          mkdir -p _site
-          cp index.html _site/
+        run: install -Dm644 index.html _site/index.html
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      # The upload can complete before the artifact service lists the file.
+      - name: Allow time for the Pages artifact to become visible
+        run: sleep 15
       - uses: actions/deploy-pages@v4
         id: deployment
