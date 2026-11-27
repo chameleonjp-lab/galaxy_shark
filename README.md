@@ -2,7 +2,7 @@
 
 サメを操作し、獲物を食べながら海から銀河まで成長するブラウザゲームです。
 
-[ゲームを開く](https://chameleonjp-lab.github.io/universe_shark/)
+[ゲームを開く](https://chameleonjp-lab.github.io/galaxy_shark/)
 
 `index.html` がゲーム本体です。ビルドは不要です。起動時に Three.js r128 を CDN から読み込みます。
 
