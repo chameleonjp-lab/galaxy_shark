@@ -1175,6 +1175,7 @@
       <div style="display:flex;gap:6px;">
         <button id="title-skin-btn" class="comic-mini-btn">SKIN: STANDARD</button>
         <button id="title-mute-btn" class="comic-mini-btn">音: ON</button>
+        <button id="title-gfx-btn" class="comic-mini-btn" title="軽量：描画の負担を減らす（細かな部品の動きとふち取りを省く）">描画: 標準</button>
       </div>
     </div>
 
@@ -1255,6 +1256,7 @@
         <button id="btn-24fps" class="comic-mini-btn">24FPS: OFF</button>
         <button id="btn-flash" class="comic-mini-btn">点滅軽減: OFF</button>
         <button id="btn-shake" class="comic-mini-btn">揺れ: 強</button>
+        <button id="btn-gfx" class="comic-mini-btn" title="軽量：描画の負担を減らす（細かな部品の動きとふち取りを省く）">描画: 標準</button>
         <button id="btn-warp" class="comic-mini-btn" style="display:none;" title="次ステージ/成長テスト (L)">成長+ (L)</button>
       </div>
       <div id="hud-combo" class="comic-text">0 COMBO!</div>
@@ -5047,6 +5049,76 @@
     });
   }
 
+  // 軽量表示用：獲物のモデルの部品を、材質ごとに1つの形へまとめる。
+  // 描画命令が部品の数から材質の数に減る代わりに、部品ごとの動き（プロペラなど）とふち取りは省く。
+  function buildMergedModel(src) {
+    src.updateMatrixWorld(true);
+    const rootInv = new THREE.Matrix4().copy(src.matrixWorld).invert();
+    const buckets = new Map();
+    const extras = [];
+    const rel = new THREE.Matrix4();
+    const isShown = (o) => { for (let n = o; n && n !== src; n = n.parent) if (!n.visible) return false; return true; };
+    src.traverse((o) => {
+      if (o === src || o.name === 'comic_outline' || !isShown(o)) return;
+      rel.multiplyMatrices(rootInv, o.matrixWorld);
+      if (o.isMesh && !o.isInstancedMesh && !Array.isArray(o.material) && o.geometry && o.geometry.attributes.position) {
+        const mat = o.material;
+        let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+        if (!g.attributes.normal) g.computeVertexNormals();
+        g.applyMatrix4(rel);
+        const flip = rel.determinant() < 0;
+        let b = buckets.get(mat.uuid);
+        if (!b) { b = { mat, pos: [], nor: [], uv: [], needUv: !!mat.map }; buckets.set(mat.uuid, b); }
+        const P = g.attributes.position.array, N = g.attributes.normal.array;
+        const U = g.attributes.uv ? g.attributes.uv.array : null;
+        const vc = g.attributes.position.count;
+        for (let t = 0; t + 2 < vc; t += 3) {
+          const order = flip ? [t, t + 2, t + 1] : [t, t + 1, t + 2];
+          for (const v of order) {
+            b.pos.push(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]);
+            b.nor.push(N[v * 3], N[v * 3 + 1], N[v * 3 + 2]);
+            if (b.needUv) b.uv.push(U ? U[v * 2] : 0, U ? U[v * 2 + 1] : 0);
+          }
+        }
+        g.dispose();
+      } else if (o.isPoints || o.isLine || o.isSprite || o.isInstancedMesh) {
+        const c = o.clone(false);
+        rel.decompose(c.position, c.quaternion, c.scale);
+        extras.push(c);
+      }
+    });
+    const parts = [];
+    for (const b of buckets.values()) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(b.nor, 3));
+      if (b.needUv) geo.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+      geo.computeBoundingSphere();
+      geo.userData = { cached: true };
+      b.mat.userData = b.mat.userData || {};
+      b.mat.userData.cached = true; // 同じ形を何体もの獲物で使い回すので、捨てない
+      parts.push({ geo, mat: b.mat });
+    }
+    for (const e of extras) {
+      if (e.geometry) { e.geometry.userData = e.geometry.userData || {}; e.geometry.userData.cached = true; }
+      const ms = Array.isArray(e.material) ? e.material : [e.material];
+      for (const m of ms) if (m) { m.userData = m.userData || {}; m.userData.cached = true; }
+    }
+    // 獲物全体が回る動き（惑星の自転など）だけは残す
+    const spins = ((src.userData && src.userData.animParts) || []).filter(a => a.mesh === src).map(a => ({ ...a }));
+    return { parts, extras, spins, rotation: src.rotation.clone() };
+  }
+
+  function instantiateMergedModel(model) {
+    const root = new THREE.Group();
+    for (const part of model.parts) root.add(new THREE.Mesh(part.geo, part.mat));
+    for (const e of model.extras) root.add(e.clone(false));
+    root.rotation.copy(model.rotation);
+    root.userData.animParts = model.spins.map(a => ({ ...a, mesh: root }));
+    root.userData.lightModel = true;
+    return root;
+  }
+
   function distPointToSegmentSq(p, a, b) {
     const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
     const apx = p.x - a.x, apy = p.y - a.y, apz = p.z - a.z;
@@ -5319,7 +5391,7 @@
         this.sceneryGroup.remove(this.sceneryGroup.children[0]);
       }
       this.worldScenery = [];
-      const count = IS_MOBILE ? 30 : 52;
+      const count = this.lightMode ? 18 : (IS_MOBILE ? 30 : 52);
       const spread = 135;
 
       if (phase === 1) {
@@ -5364,7 +5436,7 @@
       } else if (phase === 2) {
         // Phase 2 Scenery: ONLY high overhead comic clouds (ALL street-level buildings/houses/cars are 100% real eatable preys—ZERO ghost pass-through buildings!)
         const cloudMat = this.shaderMgr.createToonMaterial(0xffffff);
-        for (let i = 0; i < 18; i++) {
+        for (let i = 0; i < (this.lightMode ? 8 : 18); i++) {
           const g = new THREE.Group();
           const c1 = new THREE.Mesh(new THREE.DodecahedronGeometry(9 + (i % 3) * 3, 1), cloudMat);
           c1.scale.set(2.1, 0.55, 1.3);
@@ -5393,6 +5465,41 @@
       }
     }
 
+    // 獲物の3Dモデルを作る。軽量表示のときは、部品をまとめた形を種類ごとに数通り作って使い回す
+    makePreyMesh(cfg) {
+      if (!this.lightMode) return this.modelFactory.buildMesh(cfg);
+      this.lightModels = this.lightModels || new Map();
+      let list = this.lightModels.get(cfg.id);
+      if (!list) { list = []; this.lightModels.set(cfg.id, list); }
+      if (list.length < 3) {
+        const src = this.modelFactory.buildMesh(cfg);
+        list.push(buildMergedModel(src));
+        disposeObjectGeometries(src);
+      }
+      return instantiateMergedModel(list[Math.floor(Math.random() * list.length)]);
+    }
+
+    setLightMode(on) {
+      this.lightMode = !!on;
+      // いま出ている獲物も、その場で作り直す
+      for (const p of this.preys) {
+        if (!p.alive) continue;
+        const old = p.mesh;
+        const mesh = this.makePreyMesh(p.cfg);
+        mesh.position.copy(old.position);
+        mesh.quaternion.copy(old.quaternion);
+        mesh.scale.copy(old.scale);
+        this.scene.remove(old);
+        disposeObjectGeometries(old);
+        this.scene.add(mesh);
+        p.mesh = mesh;
+        p.outlines = [];
+        mesh.traverse((c) => { if (c.name === 'comic_outline') p.outlines.push(c); });
+        p.outlinesOn = true;
+      }
+      if (this.shark) this.rebuildWorldScenery(this.shark.phase);
+    }
+
     loadSettings() {
       try { return JSON.parse(localStorage.getItem('gs_settings_v1') || '{}') || {}; } catch { return {}; }
     }
@@ -5401,7 +5508,7 @@
       try {
         localStorage.setItem('gs_settings_v1', JSON.stringify({
           skinIdx: this.skinIdx, muted: this.audio.muted, sticks: this.sticksVisible,
-          fps24: this.limited24fps, flash: this.reducedFlash, shake: this.shakeLevel
+          fps24: this.limited24fps, flash: this.reducedFlash, shake: this.shakeLevel, light: !!this.lightMode
         }));
       } catch {}
     }
@@ -5784,6 +5891,23 @@
         this.saveSettings();
       });
 
+      // 描画（標準 → 軽量）
+      const applyGfxLabels = () => {
+        const label = `描画: ${this.lightMode ? '軽量' : '標準'}`;
+        for (const id of ['btn-gfx', 'title-gfx-btn']) {
+          const b = document.getElementById(id);
+          b.textContent = label;
+          b.classList.toggle('active-toggle', !!this.lightMode);
+        }
+      };
+      const toggleGfx = () => {
+        this.setLightMode(!this.lightMode);
+        applyGfxLabels();
+        this.saveSettings();
+      };
+      document.getElementById('btn-gfx').addEventListener('click', toggleGfx);
+      document.getElementById('title-gfx-btn').addEventListener('click', toggleGfx);
+
       // 保存した設定を読み込む（端末の「視差効果を減らす」設定も初期値に反映する）
       const prefersReduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
       const st = this.loadSettings();
@@ -5797,6 +5921,7 @@
       if (st.fps24) document.getElementById('btn-24fps').click();
       if (st.flash ?? prefersReduced) document.getElementById('btn-flash').click();
       if (typeof st.sticks === 'boolean' && st.sticks !== this.sticksVisible) stickBtn.click();
+      if (st.light) { this.setLightMode(true); applyGfxLabels(); }
     }
 
     bindStick(control, update, resetPosition) {
@@ -6373,7 +6498,7 @@
         this.shark.pos.z + Math.cos(angle) * dist
       );
 
-      const mesh = this.modelFactory.buildMesh(cfg);
+      const mesh = this.makePreyMesh(cfg);
       const outlines = [];
       mesh.traverse((c) => { if (c.name === 'comic_outline') outlines.push(c); });
       mesh.position.copy(pos);
