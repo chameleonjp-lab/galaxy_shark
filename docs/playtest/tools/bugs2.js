@@ -15,6 +15,14 @@ const { open } = require('./common');
     out.modeAfterRetry = g.mode; out.epAfterRetry = g.shark.evolutionPoints;
     document.querySelector('#evo-cards .evo-card').click();
     out.epAfterClickingStaleCard = g.shark.evolutionPoints; out.unlocked = [...g.shark.unlockedEvolutions];
+    // 最初の進化の説明を一度終えたら、次の回では出ないか
+    g.resetState(); g.mode = 'PLAYING'; g.shark.evolutionPoints = 1; step(2);
+    out.forcedTutorialFirstRun = g.forcedEvoTutorial;
+    g.openEvolutionModal(); document.querySelector('#evo-cards .evo-card').click(); step(1);
+    document.getElementById('res-retry-btn').click(); step(2);
+    g.shark.evolutionPoints = 1; step(2);
+    out.forcedTutorialSecondRun = g.forcedEvoTutorial;
+    g.closeEvolutionModal(); g.shark.evolutionPoints = 0;
     // golden chase test: spawn golden ahead at various S and chase full throttle + bite spam
     const res = [];
     for (const [stage, len] of [[1, 0.6], [1, 1.2], [2, 3.0], [3, 12], [4, 40]]) {
