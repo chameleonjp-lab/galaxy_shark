@@ -14,6 +14,7 @@
     --comic-magenta: #FF2A85;
     --comic-ink: #050508;
     --comic-font: 'Impact', 'Arial Black', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    --control-edge-gap: 28px;
   }
 
   * {
@@ -37,6 +38,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+    overscroll-behavior: none;
     background: #02182b;
     font-family: var(--comic-font);
     touch-action: none;
@@ -47,6 +49,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+    touch-action: none;
   }
 
   #gl-canvas, #fx-canvas {
@@ -891,6 +894,11 @@
   }
   .comic-modal-backdrop.active { display: flex; }
 
+  #evo-modal-inner, #result-box {
+    touch-action: pan-y;
+    overscroll-behavior: none;
+  }
+
   #evo-modal-inner {
     width: min(880px, 95vw);
     max-height: 92vh;
@@ -1045,6 +1053,22 @@
     #issue-caption { top: 44px; padding: 5px 10px; width: min(320px, 68vw); }
     #issue-title { font-size: 14px; }
     #issue-sub { font-size: 11px; }
+  }
+
+  @media (any-pointer: coarse) {
+    #title-screen {
+      padding-left: max(var(--control-edge-gap), env(safe-area-inset-left));
+      padding-right: max(var(--control-edge-gap), env(safe-area-inset-right));
+    }
+    #touch-zone { left: max(var(--control-edge-gap), env(safe-area-inset-left)); }
+    #hud-tr, #hud-br { right: max(var(--control-edge-gap), env(safe-area-inset-right)); }
+    #hud-br { bottom: max(var(--control-edge-gap), env(safe-area-inset-bottom)); }
+  }
+  @media (any-pointer: coarse) and (min-height: 481px) {
+    #vert-stick-zone { right: max(var(--control-edge-gap), env(safe-area-inset-right)); }
+  }
+  @media (any-pointer: coarse) and (max-height: 480px) {
+    #vert-stick-zone { bottom: max(var(--control-edge-gap), env(safe-area-inset-bottom)); }
   }
 
   @keyframes pulsePop {
@@ -5207,6 +5231,7 @@
     }
 
     resetState() {
+      this.releaseSticks?.();
       this.shark = {
         pos: new THREE.Vector3(0, 0, 0),
         vel: new THREE.Vector3(0, 0, 1),
@@ -5293,6 +5318,27 @@
 
     // ================= UI BINDING =================
     bindUI() {
+      const gameWrap = document.getElementById('game-wrap');
+      const cancelBrowserAction = (e) => {
+        if (e.cancelable) e.preventDefault();
+      };
+      for (const event of ['contextmenu', 'selectstart', 'dragstart', 'dblclick', 'gesturestart', 'gesturechange', 'gestureend']) {
+        gameWrap.addEventListener(event, cancelBrowserAction, { capture: true, passive: false });
+      }
+      // Safari decides whether to start back/forward navigation on the initial edge touch.
+      gameWrap.addEventListener('touchstart', (e) => {
+        const edge = 24;
+        if (Array.from(e.changedTouches).some(t => t.clientX < edge || t.clientX >= window.innerWidth - edge)) {
+          cancelBrowserAction(e);
+        }
+      }, { capture: true, passive: false });
+      gameWrap.addEventListener('touchmove', (e) => {
+        // Preserve single-finger button taps and scrolling inside the game panels.
+        if (e.touches.length > 1 || !e.target.closest('button, #evo-modal-inner, #result-box')) {
+          cancelBrowserAction(e);
+        }
+      }, { capture: true, passive: false });
+
       const unlockAudio = () => this.audio.init();
       window.addEventListener('pointerdown', unlockAudio, { once: true });
       window.addEventListener('keydown', unlockAudio, { once: true });
@@ -5361,9 +5407,6 @@
         document.getElementById('title-screen').classList.remove('hidden');
       });
 
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden && this.mode === 'PLAYING') this.setPaused(true);
-      });
       document.getElementById('btn-flash').addEventListener('click', (e) => {
         this.reducedFlash = !this.reducedFlash;
         e.target.textContent = `点滅軽減: ${this.reducedFlash ? 'ON' : 'OFF'}`;
@@ -5453,6 +5496,31 @@
       const vTrack = document.getElementById('vert-track');
       const vKnob = document.getElementById('vert-knob');
 
+      const releaseLeftStick = this.bindStick(tBase, (e) => this.updateStick(e, tBase, tKnob), () => {
+        this.touchVec = { x: 0, y: 0, active: false };
+        tKnob.style.left = '30px';
+        tKnob.style.top = '30px';
+      });
+      const releaseVerticalStick = this.bindStick(vTrack, (e) => this.updateVertStick(e, vTrack, vKnob), () => {
+        this.vertStick = { y: 0, active: false };
+        vKnob.style.top = '39px';
+      });
+      this.releaseSticks = () => {
+        releaseLeftStick();
+        releaseVerticalStick();
+      };
+      const clearHeldInputs = () => {
+        this.releaseSticks();
+        this.keys.clear();
+      };
+      window.addEventListener('blur', clearHeldInputs);
+      window.addEventListener('pagehide', clearHeldInputs);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) return;
+        clearHeldInputs();
+        if (this.mode === 'PLAYING') this.setPaused(true);
+      });
+
       tZone.classList.toggle('hidden-stick', !this.sticksVisible);
       vZone.classList.toggle('hidden-stick', !this.sticksVisible);
       const stickBtn = document.getElementById('btn-stick');
@@ -5460,53 +5528,40 @@
       stickBtn.classList.toggle('active-toggle', this.sticksVisible);
       stickBtn.addEventListener('click', (e) => {
         this.sticksVisible = !this.sticksVisible;
+        if (!this.sticksVisible) this.releaseSticks();
         tZone.classList.toggle('hidden-stick', !this.sticksVisible);
         vZone.classList.toggle('hidden-stick', !this.sticksVisible);
         e.target.textContent = `STICK: ${this.sticksVisible ? 'ON' : 'OFF'}`;
         e.target.classList.toggle('active-toggle', this.sticksVisible);
       });
+    }
 
-      // Left Joystick (Forward / Back / Left / Right)
-      let leftId = null;
-      const onLeftEnd = (e) => {
-        if (e.pointerId === leftId) {
-          leftId = null;
-          this.touchVec = { x: 0, y: 0, active: false };
-          tKnob.style.left = '30px'; tKnob.style.top = '30px';
-        }
+    bindStick(control, update, resetPosition) {
+      let activePointer = null;
+      const release = () => {
+        if (activePointer === null) return;
+        const pointerId = activePointer;
+        activePointer = null;
+        if (control.hasPointerCapture(pointerId)) control.releasePointerCapture(pointerId);
+        resetPosition();
       };
-      tBase.addEventListener('pointerdown', (e) => {
+      control.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || activePointer !== null || this.mode !== 'PLAYING') return;
         e.stopPropagation();
-        leftId = e.pointerId;
-        tBase.setPointerCapture(leftId);
-        this.updateStick(e, tBase, tKnob);
+        activePointer = e.pointerId;
+        control.setPointerCapture(activePointer);
+        update(e);
       });
-      tBase.addEventListener('pointermove', (e) => {
-        if (e.pointerId === leftId) this.updateStick(e, tBase, tKnob);
+      control.addEventListener('pointermove', (e) => {
+        if (e.pointerId === activePointer) update(e);
       });
-      tBase.addEventListener('pointerup', onLeftEnd);
-      tBase.addEventListener('pointercancel', onLeftEnd);
-
-      // Right Vertical Stick (Up / Down)
-      let vertId = null;
-      const onVertEnd = (e) => {
-        if (e.pointerId === vertId) {
-          vertId = null;
-          this.vertStick = { y: 0, active: false };
-          vKnob.style.top = '39px';
-        }
+      const onEnd = (e) => {
+        if (e.pointerId === activePointer) release();
       };
-      vTrack.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        vertId = e.pointerId;
-        vTrack.setPointerCapture(vertId);
-        this.updateVertStick(e, vTrack, vKnob);
-      });
-      vTrack.addEventListener('pointermove', (e) => {
-        if (e.pointerId === vertId) this.updateVertStick(e, vTrack, vKnob);
-      });
-      vTrack.addEventListener('pointerup', onVertEnd);
-      vTrack.addEventListener('pointercancel', onVertEnd);
+      control.addEventListener('pointerup', onEnd);
+      control.addEventListener('pointercancel', onEnd);
+      control.addEventListener('lostpointercapture', onEnd);
+      return release;
     }
 
     updateStick(e, base, knob) {
@@ -5551,6 +5606,7 @@
     setPaused(paused) {
       if (paused && this.mode === 'PLAYING') {
         this.mode = 'PAUSED';
+        this.releaseSticks();
         this.audio.setPaused(true);
         document.getElementById('pause-overlay').classList.add('active');
       } else if (!paused && this.mode === 'PAUSED') {
@@ -6524,6 +6580,7 @@
     openEvolutionModal() {
       if (this.mode !== 'PLAYING') return;
       this.mode = 'EVOLUTION_SELECT';
+      this.releaseSticks();
       document.getElementById('menu-drawer').classList.remove('open');
       document.getElementById('forced-evo-backdrop').classList.remove('active');
       document.getElementById('forced-evo-callout').classList.remove('active');
@@ -6606,6 +6663,7 @@
 
     showResult(isClear) {
       this.mode = isClear ? 'CLEAR' : 'GAME_OVER';
+      this.releaseSticks();
       document.getElementById('res-endless-btn').style.display = isClear ? 'inline-block' : 'none';
       document.getElementById('result-headline').textContent = isClear ? 'THE END... OR IS IT?!' : 'SHARK DOWN!!';
       document.getElementById('result-sub').textContent = isClear
