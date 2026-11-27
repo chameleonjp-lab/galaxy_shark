@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - index.html
+      - vendor/**
       - .github/workflows/pages.yml
   push:
     branches: ['**']
@@ -24,7 +25,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Prepare site
-        run: install -Dm644 index.html _site/index.html
+        run: |
+          install -Dm644 index.html _site/index.html
+          install -Dm644 -t _site/vendor vendor/three.min.js vendor/three.LICENSE
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site

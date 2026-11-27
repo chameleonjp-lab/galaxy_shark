@@ -77,7 +77,7 @@ const seed = +(process.argv[5] || 1);
           g.touchVec = { x: tx, y: (Math.abs(diff) > 1.0 && hd < S * 8) ? -0.6 : 1, active: true };
           g.vertStick = { y: Math.max(-1, Math.min(1, dy / (S * 2))), active: true };
           const dist = Math.hypot(dx, dz, dy);
-          if (policy === 'spam' && t - lastBite > 0.3) { g.performManualBite(); lastBite = t; }
+          if (policy === 'spam' && s.biteCd <= 0) { g.performManualBite(); lastBite = t; }
           if (policy === 'smart' && dist < S * 6 && t - lastBite > 0.3) { g.performManualBite(); lastBite = t; }
         }
       }

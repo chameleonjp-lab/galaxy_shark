@@ -18,8 +18,11 @@ const { open } = require('./common');
   const { browser, page } = await open();
   await page.evaluate(() => { window.__fakeNow = performance.now(); const rn = performance.now.bind(performance); window.__rn = rn; performance.now = () => window.__fakeNow; window.requestAnimationFrame = () => 0; });
   await page.click('#play-btn');
-  const r = await page.evaluate(() => {
+  const light = process.argv[2] === 'light';
+  console.log(light ? '軽量表示' : '標準表示');
+  const r = await page.evaluate((light) => {
     const g = window.__galaxyShark; const realRender = g.renderer.render.bind(g.renderer);
+    if (light) g.setLightMode(true);
     const out = [];
     g.hasCompletedFirstEvo = true;
     for (const ph of [1, 2, 3, 4, 5]) {
@@ -37,7 +40,7 @@ const { open } = require('./common');
       g.renderer.info.autoReset = true;
     }
     return out;
-  });
+  }, light);
   console.table(r);
   await browser.close();
 })();

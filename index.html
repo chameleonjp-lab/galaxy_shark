@@ -4,7 +4,18 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>GALAXY SHARK — アメコミ調3Dサメ巨大化捕食アクション</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<meta name="description" content="小さなサメを操作して獲物を食べ、海から都市、空、宇宙、そして銀河まで巨大化していく、アメコミ調の3D捕食アクションゲーム。ブラウザですぐ遊べます。" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="GALAXY SHARK — 食って、伸びて、銀河まで丸呑み!!" />
+<meta property="og:description" content="0.5mのサメが、海・都市・空・宇宙を食べ進み、10万光年の銀河サメへ。アメコミ調の3D捕食アクション。" />
+<meta name="twitter:card" content="summary" />
+<meta name="theme-color" content="#02182b" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23FFE600'/%3E%3Cpath d='M8 40 Q30 14 56 30 L46 34 L56 44 Q30 52 8 40 Z' fill='%231b4d89' stroke='%23050508' stroke-width='3'/%3E%3Cpath d='M30 22 L36 8 L40 24 Z' fill='%231b4d89' stroke='%23050508' stroke-width='3'/%3E%3C/svg%3E" />
+<script src="vendor/three.min.js"></script>
+<script>
+  // 同梱の Three.js が読めなかったときだけ、配布元（CDN）から読み直す
+  if (!window.THREE) document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+</script>
 <style>
   :root {
     --comic-yellow: #FFE600;
@@ -164,14 +175,23 @@
     font-size: clamp(12px, 1.8vw, 17px);
     color: #00F0FF;
   }
+  #hud-boss-mark {
+    position: absolute; top: -3px; bottom: -3px; width: 4px;
+    background: #FF1744; display: none; color: transparent; overflow: visible;
+  }
+  #hud-boss-mark::after {
+    content: '☠'; position: absolute; top: -17px; left: -6px;
+    font-size: 13px; color: #FF1744; text-shadow: 1px 1px 0 #050508;
+  }
   #hud-growth-bar-wrap {
+    position: relative;
     width: clamp(140px, 24vw, 240px);
     height: 14px;
     border: 3px solid #050508;
     background: rgba(255,255,255,0.22);
     transform: skewX(-14deg);
     box-shadow: 4px 4px 0 #050508;
-    overflow: hidden;
+    overflow: visible;
   }
   #hud-growth-fill {
     height: 100%;
@@ -751,6 +771,7 @@
     gap: 10px;
   }
   .issue-stamp {
+    white-space: nowrap;
     background: #FFE600;
     color: #050508;
     border: 4px solid #050508;
@@ -769,8 +790,8 @@
     background: linear-gradient(180deg, #FFF700 0%, #FF8A00 55%, #FF0033 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    -webkit-text-stroke: 4px #050508;
-    filter: drop-shadow(8px 8px 0 #050508);
+    -webkit-text-stroke: 0.045em #050508;
+    filter: drop-shadow(0.08em 0.08em 0 #050508);
     transform: skewX(-10deg) rotate(-2deg);
     line-height: 0.95;
   }
@@ -949,7 +970,6 @@
   .evo-card-desc { font-size: 13px; font-family: sans-serif; font-weight: 700; line-height: 1.35; }
   .evo-card-cost { font-size: 13px; font-weight: 900; color: #D50000; }
 
-  /* ================= ENCYCLOPEDIA MODAL ================= */
   #result-box {
     width: min(940px, 95vw);
     max-height: 88vh;
@@ -1071,6 +1091,72 @@
     #vert-stick-zone { bottom: max(var(--control-edge-gap), env(safe-area-inset-bottom)); }
   }
 
+  /* 初めて食べた獲物の紹介（画面下の中央に少しだけ出す） */
+  #prey-card {
+    position: absolute; left: 50%; bottom: 92px;
+    transform: translateX(-50%) skewX(-6deg) translateY(12px);
+    width: min(420px, 62vw); z-index: 16; pointer-events: none;
+    background: #FFFDF0; color: #050508; border: 4px solid #050508;
+    box-shadow: 5px 5px 0 #050508; padding: 6px 12px;
+    opacity: 0; transition: opacity 0.2s, transform 0.2s;
+  }
+  #prey-card.show { opacity: 1; transform: translateX(-50%) skewX(-6deg) translateY(0); }
+  #prey-card-tag { display: inline-block; background: #FF2A85; color: #fff; font-size: 11px; font-weight: 900; padding: 1px 6px; }
+  #prey-card-name { font-size: 16px; font-weight: 900; }
+  #prey-card-flavor { font-family: sans-serif; font-size: 12px; font-weight: 700; line-height: 1.35; }
+  @media (max-height: 480px) { #prey-card { bottom: 64px; width: min(360px, 46vw); padding: 4px 10px; } #prey-card-flavor { font-size: 11px; } }
+  @media (max-width: 720px) and (orientation: portrait) { #prey-card { bottom: auto; top: 26%; width: 78vw; } }
+
+  .credit-link { position: absolute; right: 18px; bottom: 6px; white-space: nowrap; font-family: sans-serif; font-size: 10px; color: #cfefff; text-decoration: underline; }
+
+  #fatal-screen {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(2, 24, 43, 0.94); padding: 16px;
+  }
+  #fatal-screen[hidden] { display: none; }
+  .fatal-box {
+    max-width: 440px; background: #FFFDF0; color: #050508;
+    border: 5px solid #050508; box-shadow: 8px 8px 0 #050508;
+    padding: 18px 20px; font-family: sans-serif; line-height: 1.6;
+  }
+  .fatal-title { font-size: 20px; font-weight: 900; margin-bottom: 6px; }
+  .fatal-hint { font-size: 13px; }
+  .fatal-box button {
+    margin-top: 6px; font-size: 16px; font-weight: 900; padding: 8px 20px;
+    background: #FFE600; border: 3px solid #050508; cursor: pointer;
+  }
+
+  /* 結果画面のボタンは、箱の中を動かさなくても常に見えるように下へ固定する */
+  .result-actions {
+    position: sticky;
+    bottom: -16px;
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    margin: 8px -16px -16px; padding: 10px 16px 14px;
+    background: #FFFDF0; border-top: 4px solid #050508;
+  }
+  @media (max-height: 480px) {
+    .cover-logo { font-size: clamp(34px, 14vh, 64px); }
+    .cover-tagline { font-size: 13px; }
+    #play-btn { font-size: 26px; padding: 6px 30px; border-width: 4px; box-shadow: 6px 6px 0 #050508; }
+    .controls-tip { font-size: 10px; line-height: 1.35; }
+    .comic-barcode { display: none; }
+    #title-screen { padding-top: 10px; padding-bottom: 10px; }
+    #result-box { padding: 10px 14px; gap: 6px; max-height: 94vh; }
+    .result-headline { font-size: 26px; text-shadow: 3px 3px 0 #050508; }
+    .rank-stamp { font-size: 24px; padding: 2px 14px; margin: 0 auto; }
+    .result-stats-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 2px 0; }
+    .stat-cell { padding: 5px; box-shadow: 3px 3px 0 #050508; }
+    .stat-cell-val { font-size: 15px; }
+    .result-actions .act-btn { padding: 6px 12px; font-size: 13px; }
+  }
+  @media (max-width: 480px) {
+    .issue-stamp { font-size: 11px; padding: 5px 8px; }
+  }
+
+  body.reduced-flash #evo-top-notice, body.reduced-flash #hud-golden-alert,
+  body.reduced-flash #hud-flood-badge, body.reduced-flash .act-btn.evo-active { animation: none; }
+
   @keyframes pulsePop {
     from { transform: skewX(-10deg) scale(1); }
     to { transform: skewX(-10deg) scale(1.09); }
@@ -1088,7 +1174,8 @@
       <div class="issue-stamp">ISSUE #1 • 0.5m → 100,000 LY</div>
       <div style="display:flex;gap:6px;">
         <button id="title-skin-btn" class="comic-mini-btn">SKIN: STANDARD</button>
-        <button id="title-mute-btn" class="comic-mini-btn">SFX: ON</button>
+        <button id="title-mute-btn" class="comic-mini-btn">音: ON</button>
+        <button id="title-gfx-btn" class="comic-mini-btn" title="軽量：描画の負担を減らす（細かな部品の動きとふち取りを省く）">描画: 標準</button>
       </div>
     </div>
 
@@ -1112,6 +1199,7 @@
         <div class="barcode-lines"></div>
         <div class="barcode-num">SHARK-001</div>
       </div>
+      <a class="credit-link" href="vendor/three.LICENSE" target="_blank" rel="noopener">3D表示: three.js (MIT License)</a>
     </div>
   </div>
 
@@ -1142,7 +1230,7 @@
     <div id="hud-tl">
       <div id="hud-length" class="comic-text">0.50 m</div>
       <div id="hud-phase" class="comic-text comic-text-cyan">PHASE 1 海洋 • STAGE 1</div>
-      <div id="hud-growth-bar-wrap"><div id="hud-growth-fill"></div></div>
+      <div id="hud-growth-bar-wrap"><div id="hud-growth-fill"></div><div id="hud-boss-mark" title="ここまで育つとボスが出現">☠</div></div>
       <div id="hud-damage-row">
         <span id="hud-wanted" class="comic-text"></span>
         <span id="hud-damage" class="comic-text"></span>
@@ -1167,6 +1255,8 @@
         <button id="btn-stick" class="comic-mini-btn active-toggle">STICK: ON</button>
         <button id="btn-24fps" class="comic-mini-btn">24FPS: OFF</button>
         <button id="btn-flash" class="comic-mini-btn">点滅軽減: OFF</button>
+        <button id="btn-shake" class="comic-mini-btn">揺れ: 強</button>
+        <button id="btn-gfx" class="comic-mini-btn" title="軽量：描画の負担を減らす（細かな部品の動きとふち取りを省く）">描画: 標準</button>
         <button id="btn-warp" class="comic-mini-btn" style="display:none;" title="次ステージ/成長テスト (L)">成長+ (L)</button>
       </div>
       <div id="hud-combo" class="comic-text">0 COMBO!</div>
@@ -1194,6 +1284,7 @@
     </div>
 
     <div id="evo-top-notice" class="comic-text">⚡ 進化可能!!<br>右下の「進化」をタップ!! ⚡</div>
+    <div id="prey-card" aria-live="polite"><div id="prey-card-tag">NEW!! はじめて食べた</div><div id="prey-card-name"></div><div id="prey-card-flavor"></div></div>
     <div id="tap-bite-guide">👆 画面タップで<br>サメが噛みつく!!</div>
     <div id="clear-banner">
       <div class="comic-text" style="font-size:clamp(30px,6.5vw,58px);color:#FFE600;">GALAXY CONQUERED!!</div>
@@ -1208,7 +1299,7 @@
     </div>
     <div id="pause-overlay">
       <div class="comic-text" style="font-size:44px;color:#FFE600;">PAUSED</div>
-      <div class="comic-text comic-text-white" style="font-size:14px;text-align:center;max-width:86vw;">
+      <div id="pause-controls" class="comic-text comic-text-white" style="font-size:14px;text-align:center;max-width:86vw;">
         左スティック / WASD：前後左右移動<br>
         右縦スティック / ↑↓：上下（陸はジャンプ）<br>
         画面タップ：噛みつき突進 ・ 右下：⚡ 進化
@@ -1216,7 +1307,7 @@
       <button id="btn-resume" class="act-btn" style="font-size:20px;padding:10px 28px;">再開する (ESC)</button>
       <button id="btn-pause-home" class="act-btn cyan" style="font-size:17px;padding:9px 24px;margin-top:6px;">🏠 タイトルへ戻る</button>
     </div>
-    <div id="gauge-tut-callout">▲ 左上のゲージ＝成長メーター!!<br>餌を食べて満タンにすると<br>ステージUP＆ボスが出現!!</div>
+    <div id="gauge-tut-callout">▲ このゲージ＝成長メーター!!<br>満タンでステージUP、☠の印でボス出現!!<br><span style="color:#B8860B">▼黄</span>の獲物は噛めば丸呑み、<span style="color:#D50000">▼赤</span>は大きいので噛んで削れ!!</div>
     <div id="forced-evo-backdrop"></div>
     <div id="forced-evo-callout">⚡ 進化ポイント獲得!! ⚡<br>進化ptでサメを強化しよう！<br>下の「⚡ 進化」をタップして<br>1回目の進化を実行!! ▼</div>
     <div id="hud-br">
@@ -1244,14 +1335,15 @@
       <div id="result-rank" class="rank-stamp">S RANK!!</div>
       <div class="result-stats-grid">
         <div class="stat-cell" style="grid-column:span 2;background:linear-gradient(90deg,#FFE600,#FF9E00);"><div class="stat-cell-label">総合スコア (TOTAL SCORE)</div><div id="res-score" class="stat-cell-val" style="font-size:clamp(24px,4.5vw,34px);">0 pt</div></div>
-        <div class="stat-cell"><div class="stat-cell-label">クリアタイム</div><div id="res-time" class="stat-cell-val">00:00</div></div>
+        <div class="stat-cell"><div id="res-time-label" class="stat-cell-label">クリアタイム</div><div id="res-time" class="stat-cell-val">00:00</div></div>
         <div class="stat-cell"><div class="stat-cell-label">最終体長</div><div id="res-len" class="stat-cell-val">100,000 光年</div></div>
         <div class="stat-cell"><div class="stat-cell-label">総捕食質量</div><div id="res-mass" class="stat-cell-val">0 t</div></div>
         <div class="stat-cell"><div class="stat-cell-label">推定被害総額</div><div id="res-yen" class="stat-cell-val">0 円</div></div>
         <div class="stat-cell" style="grid-column:span 2;"><div class="stat-cell-label">捕食数 / 最大コンボ</div><div id="res-combo" class="stat-cell-val">0体 • 0 COMBO</div></div>
+        <div class="stat-cell" style="grid-column:span 2;"><div class="stat-cell-label">腕前</div><div id="res-skill" class="stat-cell-val" style="font-size:clamp(13px,2.2vw,18px);">—</div></div>
       </div>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
-        <button id="res-retry-btn" class="act-btn">もう一度遊ぶ (RTA)</button>
+      <div class="result-actions">
+        <button id="res-retry-btn" class="act-btn">もう一度遊ぶ</button>
         <button id="res-endless-btn" class="act-btn cyan">銀河エンドレス遊泳</button>
         <button id="res-title-btn" class="act-btn red">タイトルへ</button>
       </div>
@@ -1259,19 +1351,55 @@
   </div>
 </div>
 
+<div id="fatal-screen" role="alert" hidden>
+  <div class="fatal-box">
+    <div class="fatal-title">ゲームを表示できませんでした</div>
+    <p id="fatal-msg">お使いの環境では 3D 表示を始められませんでした。</p>
+    <p class="fatal-hint">別のブラウザで開くか、ページを再読み込みしてください。学校や会社のネットワーク、広告ブロックの設定で止まっていることもあります。</p>
+    <button type="button" onclick="location.reload()">再読み込み</button>
+  </div>
+</div>
+<script>
+  window.__showFatal = (msg) => {
+    const el = document.getElementById('fatal-screen');
+    if (!el) return;
+    if (msg) document.getElementById('fatal-msg').textContent = msg;
+    el.hidden = false;
+  };
+</script>
 <script>
 (() => {
   'use strict';
+  if (!window.THREE) {
+    window.__showFatal('3D 表示に必要な部品（Three.js）を読み込めませんでした。');
+    return;
+  }
+  const hasWebGL = (() => {
+    try { const c = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl'))); } catch { return false; }
+  })();
+  if (!hasWebGL) {
+    window.__showFatal('お使いのブラウザでは 3D 表示（WebGL）を使えないため、ゲームを始められませんでした。');
+    return;
+  }
 
   // =========================================================================
   // 0. CONSTANTS, MASTER DATA (stages, preys 44, evolutions 11, news 50)
   // =========================================================================
   const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-  const IS_MOBILE = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (IS_TOUCH && window.innerWidth < 1024);
+  // 最近の iPad はパソコンとして名乗るので、「Mac でタッチ操作ができる」場合もスマホ・タブレット扱いにする
+  const IS_IPADOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  const IS_MOBILE = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || IS_IPADOS || (IS_TOUCH && window.innerWidth < 1024);
   const IS_DEBUG = /[?&]debug(=1|=true|&|$)/i.test(window.location.search);
+  // 操作の説明を出し分けるための判定（マウスなどの細かく指せる入力があるか）
+  const HAS_FINE_POINTER = !!(window.matchMedia && window.matchMedia('(any-pointer: fine)').matches);
+  const TOUCH_UI = IS_TOUCH && !(window.matchMedia && window.matchMedia('(pointer: fine)').matches);
+  const CONTROLS_HTML = TOUCH_UI
+    ? '左スティック：前進・後退・向きを変える<br>右の縦スティック：上下（陸ではジャンプ）<br>画面タップ：噛みつき突進 ・ 右下の ⚡進化：サメを強化'
+    : 'W / S：前進・後退　A / D・← →：向きを変える<br>↑ / ↓：上下（陸ではジャンプ）　スペース・クリック：噛みつき突進<br>V：進化　Esc：一時停止　右ボタンを押しながらマウス：舵を取る';
 
-  const UNIT_METERS = [0.5, 5.0, 50.0, 500.0, 8000.0, 100000.0, 1500000.0, 150000000.0, 9.461e15];
-  const SHIFT_THRESHOLDS = [0, 5.0, 50.0, 500.0, 8000.0, 100000.0, 1500000.0, 150000000.0, 1e15];
+  // 大きさの単位の切り替え。どの段も10倍前後に収めて、見た目の成長が途中で止まらないようにする
+  const UNIT_METERS = [0.5, 5.0, 50.0, 500.0, 8000.0, 100000.0, 1500000.0, 15000000.0, 150000000.0, 9.461e15];
+  const SHIFT_THRESHOLDS = [0, 5.0, 50.0, 500.0, 8000.0, 100000.0, 1500000.0, 15000000.0, 150000000.0, 1e15];
 
   const STAGES = [
     { stage: 1, phase: 1, minLen: 0.5, maxLen: 1.5, speed: 9.0, camDist: 9.0 },
@@ -1336,7 +1464,7 @@
     { id:'turtle', nameJa:'ウミガメ', phase:1, minStage:1, maxStage:3, category:'ORGANIC', realSizeMeters:0.85, hp:20, damageToShark:0, isHostile:false, damageValueYen:0, massTons:0.12, frenzyGain:5, gimmick:'NONE', color:0x2ecc71, onomatopoeia:['パキッ!','CRUNCH!'], flavor:'甲羅の歯ごたえがクセになる、海のカルシウム源。', ai:'FLEE', shape:'turtle' },
     { id:'tuna', nameJa:'マグロ / カジキ', phase:1, minStage:2, maxStage:4, category:'ORGANIC', realSizeMeters:2.2, hp:30, damageToShark:4, isHostile:false, damageValueYen:500000, massTons:0.35, frenzyGain:6, gimmick:'NONE', color:0x1b5299, onomatopoeia:['ZAP!','ガブッ!'], flavor:'時速80kmで逃げる高級魚。角がちょっと歯に刺さる。', ai:'FLEE', shape:'fish' },
     { id:'rival_shark', nameJa:'ライバル大型サメ', phase:1, minStage:2, maxStage:4, category:'ORGANIC', realSizeMeters:4.5, hp:50, damageToShark:12, isHostile:true, damageValueYen:0, massTons:1.2, frenzyGain:12, gimmick:'NONE', color:0x525c68, onomatopoeia:['CHOMP!!','ガリッ!!'], flavor:'序盤の恐怖。逆転して噛み砕く瞬間こそ至高。', ai:'HUNTER', shape:'rival' },
-    { id:'orca', nameJa:'凶暴なシャチ', phase:1, minStage:2, maxStage:4, category:'ORGANIC', realSizeMeters:8.5, hp:68, damageToShark:15, isHostile:true, damageValueYen:0, massTons:6.5, frenzyGain:16, gimmick:'NONE', color:0x0b0e14, onomatopoeia:['COUNTER CHOMP!!','ガブッ!!'], flavor:'海の殺し屋。群れで襲いかかる突進を正面噛みつきで撃退せよ！', ai:'HUNTER', shape:'orca' },
+    { id:'orca', nameJa:'凶暴なシャチ', phase:1, minStage:3, maxStage:4, category:'ORGANIC', realSizeMeters:8.5, hp:68, damageToShark:15, isHostile:true, damageValueYen:0, massTons:6.5, frenzyGain:16, gimmick:'NONE', color:0x0b0e14, onomatopoeia:['COUNTER CHOMP!!','ガブッ!!'], flavor:'海の殺し屋。群れで襲いかかる突進を正面噛みつきで撃退せよ！', ai:'HUNTER', shape:'orca' },
     { id:'whale', nameJa:'マッコウクジラ', phase:1, minStage:3, maxStage:4, category:'ORGANIC', realSizeMeters:18.5, hp:115, damageToShark:14, isHostile:true, damageValueYen:0, massTons:58, frenzyGain:18, gimmick:'NONE', color:0x2c4257, onomatopoeia:['GULP!!','ドゴン!!'], flavor:'ダイオウイカの吸盤傷を纏う海の巨獣。尾ビレ衝撃波を噛みつきで止めろ！', ai:'WHALE', shape:'whale' },
     { id:'mine', nameJa:'機雷', phase:1, minStage:3, maxStage:4, category:'MECHANICAL', realSizeMeters:3.2, hp:25, damageToShark:16, isHostile:true, damageValueYen:5000000, massTons:0.9, frenzyGain:10, gimmick:'NONE', color:0x3e444c, onomatopoeia:['ボフッ!','BOOM!'], flavor:'爆発するトゲ鉄球。大きくなれば口内で弾けるパチパチキャンディ。', ai:'FLOAT', shape:'mine' },
     { id:'whaler', nameJa:'捕鯨船 / 漁船', phase:1, minStage:3, maxStage:4, category:'MECHANICAL', realSizeMeters:11.0, hp:70, damageToShark:12, isHostile:true, damageValueYen:80000000, massTons:180, frenzyGain:12, gimmick:'NONE', color:0xd64545, onomatopoeia:['CRACK!!','バキッ!!'], flavor:'銛を撃ってくる厄介者。船体ごと真っ二つが礼儀。', ai:'HUNTER', shape:'ship' },
@@ -1362,7 +1490,7 @@
     { id:'bird', nameJa:'鳥（カモメ・ワシ）', phase:3, minStage:8, maxStage:9, category:'ORGANIC', realSizeMeters:220.0, hp:15, damageToShark:0, isHostile:false, damageValueYen:0, massTons:0.5, frenzyGain:4, gimmick:'NONE', color:0xffffff, onomatopoeia:['FLAP!','パクッ!'], flavor:'空の開幕を告げる軽いおやつ。', ai:'BOIDS', shape:'bird' },
     { id:'heli', nameJa:'ヘリコプター', phase:3, minStage:8, maxStage:10, category:'MECHANICAL', realSizeMeters:380.0, hp:35, damageToShark:10, isHostile:true, damageValueYen:1500000000, massTons:12, frenzyGain:10, gimmick:'NONE', color:0x4b5563, onomatopoeia:['CHOP!','バキッ!'], flavor:'ローターが歯に挟まるので先に飛ばすのがおすすめ。', ai:'HUNTER', shape:'heli' },
     { id:'airliner', nameJa:'旅客機', phase:3, minStage:8, maxStage:10, category:'MECHANICAL', realSizeMeters:1100.0, hp:65, damageToShark:6, isHostile:false, damageValueYen:30000000000, massTons:350, frenzyGain:12, gimmick:'NONE', color:0xf8fafc, onomatopoeia:['WHOOSH!','ガブッ!'], flavor:'飛行機雲をストローのように吸い込みながら本体へ。', ai:'FLEE', shape:'plane' },
-    { id:'fighter', nameJa:'戦闘機', phase:3, minStage:9, maxStage:10, category:'MECHANICAL', realSizeMeters:1800.0, hp:55, damageToShark:16, isHostile:true, damageValueYen:15000000000, massTons:25, frenzyGain:16, gimmick:'NONE', color:0x64748b, onomatopoeia:['BOOM!!','ドゴン!!'], flavor:'ちょこまか飛ぶ音速のハエ。テールスラップで一掃可能。', ai:'HUNTER', shape:'fighter' },
+    { id:'fighter', nameJa:'戦闘機', phase:3, minStage:9, maxStage:10, category:'MECHANICAL', realSizeMeters:1800.0, hp:55, damageToShark:16, isHostile:true, damageValueYen:15000000000, massTons:25, frenzyGain:16, gimmick:'NONE', color:0x64748b, onomatopoeia:['BOOM!!','ドゴン!!'], flavor:'ちょこまか飛ぶ音速のハエ。攻撃の直前に噛み返せば一網打尽。', ai:'HUNTER', shape:'fighter' },
     { id:'storm_cloud', nameJa:'積乱雲', phase:3, minStage:9, maxStage:10, category:'ENERGY', realSizeMeters:4200.0, hp:70, damageToShark:8, isHostile:false, damageValueYen:5000000000, massTons:500000, frenzyGain:18, gimmick:'NONE', color:0xe0e7ff, onomatopoeia:['ZAP-PUFF!!','ゴロゴロ!'], flavor:'綿あめのような口当たり。たまにピリッと雷が効いている。', ai:'FLOAT', shape:'cloud' },
     { id:'boss_skyark', nameJa:'成層圏防衛母艦（ボス）', phase:3, minStage:10, maxStage:10, category:'MECHANICAL', realSizeMeters:16000.0, hp:1950, damageToShark:24, isHostile:true, damageValueYen:300000000000000, massTons:9000000, frenzyGain:60, gimmick:'NONE', color:0x6b7c93, onomatopoeia:['SKY BREAKER!!!'], flavor:'空飛ぶ鉄の島。これを食べればもう宇宙は目の前。', ai:'BOSS', shape:'boss', isBoss:true },
     { id:'aerial_tanker', nameJa:'空中給油タンカー', phase:3, minStage:8, maxStage:10, category:'GIMMICK', realSizeMeters:950.0, hp:30, damageToShark:0, isHostile:false, damageValueYen:40000000000, massTons:400, frenzyGain:30, gimmick:'AERIAL_TANKER_BOOM', color:0xff3d00, onomatopoeia:['SKY BOOM!!'], flavor:'空飛ぶ特大花火。戦闘機編隊ごとどうぞ。', ai:'FLEE', shape:'plane' },
@@ -1388,6 +1516,20 @@
   ];
   const PREY_MAP = Object.fromEntries(PREY_CATALOG.map(p => [p.id, p]));
   const EXPLOSIVE_GIMMICKS = new Set(['FUEL_EXPLOSION', 'AERIAL_TANKER_BOOM', 'ASTEROID_CHAIN']);
+  // 同時に1つまでしか出さない仕掛け（連鎖で一度に大量に食べすぎないようにする）
+  const SINGLE_GIMMICKS = new Set(['POWER_SHOCK', 'DAM_FLOOD', 'HYDROTHERMAL_VENT']);
+  // 食べられる大きさの境目（体長に対する獲物の大きさの比）
+  const TOUCH_EAT_RATIO = 0.40; // これ以下は、触れるだけで食べられる
+  const BITE_EAT_RATIO = 0.68;  // これ以下は、噛みつけば丸呑みできる
+  // フェーズごとの体長の上限（ボスが出ている間はここで成長を止める）
+  const PHASE_MAX_LEN = { 1: 50.0, 2: 500.0, 3: 20000.0, 4: 1.5e9, 5: 9.461e20 };
+  const BOSS_TRIGGER = {
+    1: { len: 42.0, id: 'boss_kraken' },
+    2: { len: 420.0, id: 'boss_robo' },
+    3: { len: 16000.0, id: 'boss_skyark' },
+    4: { len: 6.5e8, id: 'boss_sun' },
+    5: { len: 2.0e18, id: 'boss_milkyway' }
+  };
 
   // Expanded 20-Node Fine-Grained Upgrade & Evolution Tree (6 Tiers x 3 Branches + 2 Hidden)
   const EVOLUTIONS = [
@@ -1395,12 +1537,12 @@
     { id:'dest_1', branch:'DESTROYER', tier:1, name:'強化キバ Lv.1', cost:1, desc:'噛みつき威力+25%＆鋼鉄の顎装甲を装着！', effect:{ biteDamageMult:1.25 }, visualPart:'METAL_JAW_ARMOR' },
     { id:'dest_2', branch:'DESTROYER', tier:2, name:'鋼鉄ウロコ装甲', cost:1, desc:'最大HP+30＆被ダメージ25%軽減！', effect:{ maxHpBonus:30, damageReduction:0.25 }, visualPart:'HEAVY_DORSAL_PLATES' },
     { id:'dest_3', branch:'DESTROYER', tier:3, name:'大口アゴ拡張', cost:1, desc:'丸呑み可能サイズ+10%＆捕食範囲拡大！', effect:{ instantEatRatioBonus:0.10, biteRangeBonus:0.22 }, visualPart:'METAL_JAW_ARMOR' },
-    { id:'dest_4', branch:'DESTROYER', tier:4, name:'破砕クラッシュ顎', cost:1, desc:'格上・ボスへの噛みつき威力さらに+30%！', effect:{ biteDamageMult:1.30 }, visualPart:'HEAVY_DORSAL_PLATES' },
+    { id:'dest_4', branch:'DESTROYER', tier:4, name:'破砕クラッシュ顎', cost:1, desc:'格上・ボスへの噛みつき威力さらに+30%！', effect:{ bigTargetMult:1.30 }, visualPart:'HEAVY_DORSAL_PLATES' },
     { id:'dest_5', branch:'DESTROYER', tier:5, name:'グラビティ・モー', cost:2, desc:'口元の吸い込み範囲1.8倍！周囲の餌を一気に吸引！', effect:{ suctionRadiusMult:1.8 }, visualPart:'MINI_BLACKHOLE_MOUTH' },
     { id:'dest_6', branch:'DESTROYER', tier:6, name:'タイタン・ジョーズ', cost:2, desc:'最大HP+50＆丸呑み上限さらに+10%！究極の捕食顎！', effect:{ maxHpBonus:50, instantEatRatioBonus:0.10 }, visualPart:'MINI_BLACKHOLE_MOUTH' },
 
     // SWIFT (4 Tiers: Pure Speed, Mobility, Combo & Suction — no obsolete Boost/Drill!)
-    { id:'swift_1', branch:'SWIFT', tier:1, name:'流線ヒレ強化', cost:1, desc:'基本移動速度+18%＆旋回レスポンス向上！', effect:{ moveSpeedMult:1.18 }, visualPart:'GLIDER_PECTORAL_FINS' },
+    { id:'swift_1', branch:'SWIFT', tier:1, name:'流線ヒレ強化', cost:1, desc:'基本移動速度+18%＆旋回スピード+20%！', effect:{ moveSpeedMult:1.18, turnRateMult:1.20 }, visualPart:'GLIDER_PECTORAL_FINS' },
     { id:'swift_2', branch:'SWIFT', tier:2, name:'ジェットフィン', cost:1, desc:'基本移動速度さらに+18%！ジェットノズル装着！', effect:{ moveSpeedMult:1.18 }, visualPart:'JET_THRUSTER_NOZZLES' },
     { id:'swift_3', branch:'SWIFT', tier:3, name:'コンボ・アクセル', cost:1, desc:'移動速度+15%＆コンボ受付時間+1.8秒！', effect:{ moveSpeedMult:1.15, comboTimeBonus:1.8 }, visualPart:'HYPER_SPEED_RINGS' },
     { id:'swift_4', branch:'SWIFT', tier:4, name:'ワープシャーク', cost:2, desc:'移動速度さらに+22%＆捕食吸い込み範囲1.4倍！', effect:{ moveSpeedMult:1.22, suctionRadiusMult:1.4 }, visualPart:'HYPER_SPEED_RINGS' },
@@ -1408,12 +1550,12 @@
     // MUTANT (4 Tiers: Growth, Electric Aura, Mouth Laser, Cosmic Appetite — Zero Frenzy!)
     { id:'mut_1', branch:'MUTANT', tier:1, name:'暴食の胃袋 Lv.1', cost:1, desc:'捕食時の体長成長量+20%！成長スピード大幅アップ！', effect:{ growthMult:1.20 }, visualPart:'ELECTRIC_DORSAL_COILS' },
     { id:'mut_2', branch:'MUTANT', tier:2, name:'エレクトロ・コイル', cost:1, desc:'背部に放電コイルを装着！近くの獲物を自動感電！', effect:{ shockAuraRadius:4.5 }, visualPart:'ELECTRIC_DORSAL_COILS' },
-    { id:'mut_3', branch:'MUTANT', tier:3, name:'レーザー・シャーク', cost:1, desc:'噛みつき時に前方へ高熱レーザーを発射して削る！', effect:{ beamSkillEnabled:true }, visualPart:'MOUTH_LASER_CORE' },
+    { id:'mut_3', branch:'MUTANT', tier:3, name:'レーザー・シャーク', cost:1, desc:'噛みつくたびに前方へ高熱レーザー！線上の獲物をまとめて削る！', effect:{ beamSkillEnabled:true }, visualPart:'MOUTH_LASER_CORE' },
     { id:'mut_4', branch:'MUTANT', tier:4, name:'コズミック暴食王', cost:2, desc:'成長量さらに+25%＆最大HP+40！背部プラズマ展開！', effect:{ growthMult:1.25, maxHpBonus:40 }, visualPart:'SOLAR_PLASMA_AURA' },
 
     // HIDDEN HYBRID FORMS (2)
     { id:'hyb_mecha', branch:'HYBRID', tier:6, name:'メカ・シャーク（隠し）', cost:0, unlockCondition:'METAL', desc:'【隠し形態】金属捕食率55%以上で解放！被ダメ50%減＆弾自動迎撃！', effect:{ autoInterceptMissiles:true, damageReduction:0.50 }, visualPart:'FULL_CYBORG_SKIN' },
-    { id:'hyb_ghost', branch:'HYBRID', tier:6, name:'ゴースト・シャーク（隠し）', cost:0, unlockCondition:'GHOST', desc:'【隠し形態】エネルギー比率50%+BH捕食で解放！幽体ステルス装甲！', effect:{ damageReduction:0.40 }, visualPart:'TRANSLUCENT_GHOST_SHADER' }
+    { id:'hyb_ghost', branch:'HYBRID', tier:6, name:'ゴースト・シャーク（隠し）', cost:0, unlockCondition:'GHOST', desc:'【隠し形態】エネルギー比率50%+BH捕食で解放！半透明の幽体装甲で被ダメ40%減！', effect:{ damageReduction:0.40 }, visualPart:'TRANSLUCENT_GHOST_SHADER' }
   ];
 
   // All 50 News Ticker Lines by Phase
@@ -1441,7 +1583,7 @@
       '速報!! ランドマーク高層ビルが根元から噛み切られ倒壊!!',
       '速報!! 総理、緊急事態宣言と「サメ対策特別予算100兆円」を閣議決定!!',
       '速報!! 黄金のスポーツカーが都心を爆走中!! サメが猛追!!',
-      '速報!! サメが高速きりもみドリル回転でオフィス街を貫通!!',
+      '速報!! サメがオフィス街を一直線に突き進み、ビルが次々と消失!!',
       '速報!! 推定被害総額が国家予算を突破!! 保険会社が全社休業へ!!',
       '緊急!! 秘密兵器「対サメ決戦巨大ロボ G-SHARK BUSTER」発進!!',
       '速報!! 巨大ロボの胸部コアが噛み砕かれ大破!! サメに翼が生え始めました!!'
@@ -1450,7 +1592,7 @@
       '信じられません!! サメが空を飛び始めました!! 物理法則が崩壊!!',
       '速報!! 報道ヘリが次々と捕食され、上空からの中継が途絶えています!!',
       '速報!! 全世界の航空便が欠航!! 旅客機が飛行機雲ごと飲み込まれる!!',
-      '速報!! 最新鋭ステルス戦闘機編隊、サメの尻尾ビンタで一網打尽!!',
+      '速報!! 最新鋭ステルス戦闘機編隊、サメの噛み返しで一網打尽!!',
       '速報!! 空中給油タンカーが誘爆!! 上空に巨大な炎の輪が出現!!',
       '速報!! 気象庁発表「台風と積乱雲がサメに食べられ消滅しました」!!',
       '速報!! 成層圏に謎の黄金UFOが出現!! サメと超音速チェイス!!',
@@ -1480,38 +1622,46 @@
     ]
   };
 
+  // ランクの基準点（自動プレイのボットの結果をもとに決めた。ボットの成績が S と S+ の間に入る）
+  const RANK_TABLE = { SPLUS: 70000, S: 55000, A: 42000, B: 30000 };
+
   const COMIC_SKINS = ['STANDARD', 'GOLDEN_AGE', 'NOIR', 'NEON_CYBER', 'SKETCHBOOK'];
 
   // =========================================================================
   // 1. FORMATTERS & PERSISTENCE (localStorage safely wrapped)
   // =========================================================================
+  // 大きな数を、万・億・兆・京・垓・秭・穣の単位で読みやすくする
+  const JP_UNITS = [[1e28, '穣'], [1e24, '秭'], [1e20, '垓'], [1e16, '京'], [1e12, '兆'], [1e8, '億'], [1e4, '万']];
+  function formatJpUnit(v, suffix, digits = 2) {
+    for (const [base, name] of JP_UNITS) {
+      if (v >= base) {
+        const n = v / base;
+        const str = n >= 10000 ? Math.round(n).toLocaleString() : n.toFixed(n >= 100 ? 0 : digits);
+        return `${str} ${name}${suffix}`;
+      }
+    }
+    return `${(Math.round(v * 10) / 10).toLocaleString()} ${suffix}`;
+  }
   function formatLength(m) {
     if (m >= 9.461e15) {
       const ly = m / 9.461e15;
       return ly >= 1000 ? `${Math.round(ly).toLocaleString()} 光年` : `${ly.toFixed(1)} 光年`;
     }
-    if (m >= 1e7) return `${(m / 1e7).toFixed(2)} 万km`;
+    if (m >= 1e7) return formatJpUnit(m / 1000, 'km');
     if (m >= 1000) return `${(m / 1000).toFixed(2)} km`;
     return `${m.toFixed(m < 10 ? 2 : 1)} m`;
   }
   function formatYen(yen) {
     if (yen <= 0) return '0 円';
-    if (yen >= 1e24) return `${(yen / 1e24).toFixed(2)} 秭円`;
-    if (yen >= 1e20) return `${(yen / 1e20).toFixed(2)} 垓円`;
-    if (yen >= 1e16) return `${(yen / 1e16).toFixed(2)} 京円`;
-    if (yen >= 1e12) return `${(yen / 1e12).toFixed(2)} 兆円`;
-    if (yen >= 1e8) return `${(yen / 1e8).toFixed(1)} 億円`;
-    if (yen >= 1e4) return `${Math.round(yen / 1e4)} 万円`;
+    if (yen >= 1e4) return formatJpUnit(yen, '円', yen >= 1e8 && yen < 1e12 ? 1 : 2);
     return `${Math.round(yen)} 円`;
   }
   function formatMass(tons) {
     if (tons >= 2e39) return `${(tons / 2e39).toFixed(2)} 銀河質量`;
     if (tons >= 2e33) return `${(tons / 2e33).toFixed(2)} 百万太陽質量`;
     if (tons >= 2e27) return `${(tons / 2e27).toFixed(2)} 太陽質量`;
-    if (tons >= 1e12) return `${(tons / 1e12).toFixed(2)} 兆t`;
-    if (tons >= 1e8) return `${(tons / 1e8).toFixed(2)} 億t`;
-    if (tons >= 1e4) return `${(tons / 1e4).toFixed(1)} 万t`;
     if (tons < 1) return `${Math.round(tons * 1000)} kg`;
+    if (tons >= 1e4) return formatJpUnit(tons, 't');
     return `${tons.toFixed(1)} t`;
   }
   function formatTime(sec) {
@@ -1519,16 +1669,6 @@
     const s = Math.floor(sec % 60);
     return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   }
-  function loadSavedSet(key) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? new Set(JSON.parse(raw)) : new Set();
-    } catch { return new Set(); }
-  }
-  function saveSet(key, set) {
-    try { localStorage.setItem(key, JSON.stringify([...set])); } catch {}
-  }
-
   // =========================================================================
   // 2. WEB AUDIO API PROCEDURAL AUDIO SYSTEM (13 SE + 16th-note BGM + Vacuum)
   // =========================================================================
@@ -1620,6 +1760,9 @@
     playBite(phase, combo = 1, category = 'ORGANIC', sizeRatio = 0.5) {
       if (!this.ctx || this.muted) return;
       const t = this.ctx.currentTime;
+      // 同じ音を0.05秒以内に重ねて鳴らさない（大量に食べたときの音割れと負荷を防ぐ）
+      if (t - (this.lastBiteAt || 0) < 0.05) return;
+      this.lastBiteAt = t;
 
       // 1. MUSICAL BASSLINE SCALE (Minor Pentatonic Rock Bass stepping up with combo!)
       const bassScale = [65.41, 77.78, 87.31, 98.00, 116.54, 130.81, 155.56, 174.61, 196.00];
@@ -1720,6 +1863,20 @@
       }
     }
 
+    playWhiff() {
+      if (!this.ctx || this.muted) return;
+      const t = this.ctx.currentTime;
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(1500, t);
+      o.frequency.exponentialRampToValueAtTime(700, t + 0.03);
+      g.gain.setValueAtTime(0.07, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+      o.connect(g); g.connect(this.seGain);
+      o.start(t); o.stop(t + 0.05);
+    }
+
     playNoiseBurst(dur, cutoff, vol = 0.25) {
       if (!this.ctx || !this.noiseBuf || this.muted) return;
       const t = this.ctx.currentTime;
@@ -1815,7 +1972,8 @@
     scheduleBGM() {
       if (!this.ctx || this.ctx.state !== 'running' || this.muted) return;
       const bpms = { 1: 124, 2: 132, 3: 140, 4: 118, 5: 110 };
-      const bpm = (bpms[this.phase] || 124);
+      // ボス戦は速く、メロディを鋭い音色にして場面の切り替わりをはっきりさせる
+      const bpm = (bpms[this.phase] || 124) + (this.bossMode ? 16 : 0);
       const secPer16th = 60 / bpm / 4;
 
       const bassNotes = {
@@ -1843,10 +2001,10 @@
           ko.start(t); ko.stop(t + 0.12);
         }
 
-        // Bassline
-        if (s % 2 === 0) {
+        // Bassline（ボス戦は16分音符で刻む）
+        if (s % 2 === 0 || this.bossMode) {
           const notes = bassNotes[this.phase] || bassNotes[1];
-          const f = notes[Math.floor(s / 2) % notes.length];
+          const f = notes[Math.floor(s / 2) % notes.length] * (this.bossMode && s % 2 === 1 ? 2 : 1);
           const bo = this.ctx.createOscillator();
           const bg = this.ctx.createGain();
           bo.type = this.phase === 2 ? 'sawtooth' : 'triangle';
@@ -1863,7 +2021,7 @@
           const mf = pent[(this.step * 3 + this.phase) % pent.length] * (this.phase >= 4 ? 1.5 : 1);
           const mo = this.ctx.createOscillator();
           const mg = this.ctx.createGain();
-          mo.type = this.phase === 3 ? 'square' : 'sine';
+          mo.type = this.bossMode ? 'sawtooth' : (this.phase === 3 ? 'square' : 'sine');
           mo.frequency.setValueAtTime(mf, t);
           mg.gain.setValueAtTime(0.08, t);
           mg.gain.exponentialRampToValueAtTime(0.001, t + secPer16th * 1.5);
@@ -2068,7 +2226,14 @@
       return tex;
     }
 
-    spawn(text, worldPos, baseScale = 3.0, scheme = 'fire') {
+    spawn(text, worldPos, baseScale = 3.0, scheme = 'fire', important = false) {
+      // 画面をおおわないよう、同時に出す擬音の数を抑える（大事なものは古いものを押し出して出す）
+      if (this.active.length >= 4 && !important) return;
+      while (this.active.length >= 8) {
+        const old = this.active.shift();
+        this.scene.remove(old.sprite);
+        old.sprite.material.dispose();
+      }
       const mat = new THREE.SpriteMaterial({
         map: this.getTexture(text, scheme),
         transparent: true,
@@ -4884,6 +5049,76 @@
     });
   }
 
+  // 軽量表示用：獲物のモデルの部品を、材質ごとに1つの形へまとめる。
+  // 描画命令が部品の数から材質の数に減る代わりに、部品ごとの動き（プロペラなど）とふち取りは省く。
+  function buildMergedModel(src) {
+    src.updateMatrixWorld(true);
+    const rootInv = new THREE.Matrix4().copy(src.matrixWorld).invert();
+    const buckets = new Map();
+    const extras = [];
+    const rel = new THREE.Matrix4();
+    const isShown = (o) => { for (let n = o; n && n !== src; n = n.parent) if (!n.visible) return false; return true; };
+    src.traverse((o) => {
+      if (o === src || o.name === 'comic_outline' || !isShown(o)) return;
+      rel.multiplyMatrices(rootInv, o.matrixWorld);
+      if (o.isMesh && !o.isInstancedMesh && !Array.isArray(o.material) && o.geometry && o.geometry.attributes.position) {
+        const mat = o.material;
+        let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+        if (!g.attributes.normal) g.computeVertexNormals();
+        g.applyMatrix4(rel);
+        const flip = rel.determinant() < 0;
+        let b = buckets.get(mat.uuid);
+        if (!b) { b = { mat, pos: [], nor: [], uv: [], needUv: !!mat.map }; buckets.set(mat.uuid, b); }
+        const P = g.attributes.position.array, N = g.attributes.normal.array;
+        const U = g.attributes.uv ? g.attributes.uv.array : null;
+        const vc = g.attributes.position.count;
+        for (let t = 0; t + 2 < vc; t += 3) {
+          const order = flip ? [t, t + 2, t + 1] : [t, t + 1, t + 2];
+          for (const v of order) {
+            b.pos.push(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]);
+            b.nor.push(N[v * 3], N[v * 3 + 1], N[v * 3 + 2]);
+            if (b.needUv) b.uv.push(U ? U[v * 2] : 0, U ? U[v * 2 + 1] : 0);
+          }
+        }
+        g.dispose();
+      } else if (o.isPoints || o.isLine || o.isSprite || o.isInstancedMesh) {
+        const c = o.clone(false);
+        rel.decompose(c.position, c.quaternion, c.scale);
+        extras.push(c);
+      }
+    });
+    const parts = [];
+    for (const b of buckets.values()) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(b.nor, 3));
+      if (b.needUv) geo.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+      geo.computeBoundingSphere();
+      geo.userData = { cached: true };
+      b.mat.userData = b.mat.userData || {};
+      b.mat.userData.cached = true; // 同じ形を何体もの獲物で使い回すので、捨てない
+      parts.push({ geo, mat: b.mat });
+    }
+    for (const e of extras) {
+      if (e.geometry) { e.geometry.userData = e.geometry.userData || {}; e.geometry.userData.cached = true; }
+      const ms = Array.isArray(e.material) ? e.material : [e.material];
+      for (const m of ms) if (m) { m.userData = m.userData || {}; m.userData.cached = true; }
+    }
+    // 獲物全体が回る動き（惑星の自転など）だけは残す
+    const spins = ((src.userData && src.userData.animParts) || []).filter(a => a.mesh === src).map(a => ({ ...a }));
+    return { parts, extras, spins, rotation: src.rotation.clone() };
+  }
+
+  function instantiateMergedModel(model) {
+    const root = new THREE.Group();
+    for (const part of model.parts) root.add(new THREE.Mesh(part.geo, part.mat));
+    for (const e of model.extras) root.add(e.clone(false));
+    root.rotation.copy(model.rotation);
+    root.userData.animParts = model.spins.map(a => ({ ...a, mesh: root }));
+    root.userData.lightModel = true;
+    return root;
+  }
+
   function distPointToSegmentSq(p, a, b) {
     const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
     const apx = p.x - a.x, apy = p.y - a.y, apz = p.z - a.z;
@@ -4947,6 +5182,7 @@
       // Input state
       this.keys = new Set();
       this.mouseNDC = { x: 0, y: 0, active: false };
+      this.mouseSteer = false;
       this.touchVec = { x: 0, y: 0, active: false };
       this.vertStick = { y: 0, active: false };
       this.sticksVisible = IS_TOUCH;
@@ -4974,7 +5210,6 @@
       this.onResize();
       window.addEventListener('resize', () => this.onResize());
 
-      // Encyclopedia preview renderer
 
       // Start Loop
       this.lastTime = performance.now();
@@ -5156,7 +5391,7 @@
         this.sceneryGroup.remove(this.sceneryGroup.children[0]);
       }
       this.worldScenery = [];
-      const count = IS_MOBILE ? 30 : 52;
+      const count = this.lightMode ? 18 : (IS_MOBILE ? 30 : 52);
       const spread = 135;
 
       if (phase === 1) {
@@ -5201,7 +5436,7 @@
       } else if (phase === 2) {
         // Phase 2 Scenery: ONLY high overhead comic clouds (ALL street-level buildings/houses/cars are 100% real eatable preys—ZERO ghost pass-through buildings!)
         const cloudMat = this.shaderMgr.createToonMaterial(0xffffff);
-        for (let i = 0; i < 18; i++) {
+        for (let i = 0; i < (this.lightMode ? 8 : 18); i++) {
           const g = new THREE.Group();
           const c1 = new THREE.Mesh(new THREE.DodecahedronGeometry(9 + (i % 3) * 3, 1), cloudMat);
           c1.scale.set(2.1, 0.55, 1.3);
@@ -5228,6 +5463,61 @@
         // Phase 4-5: NO fake pass-through asteroids! Every asteroid/planet/star you see is 100% real & eatable!
         // Only subtle distant cosmic ring/star dust far out
       }
+    }
+
+    // 獲物の3Dモデルを作る。軽量表示のときは、部品をまとめた形を種類ごとに数通り作って使い回す
+    makePreyMesh(cfg) {
+      if (!this.lightMode) return this.modelFactory.buildMesh(cfg);
+      this.lightModels = this.lightModels || new Map();
+      let list = this.lightModels.get(cfg.id);
+      if (!list) { list = []; this.lightModels.set(cfg.id, list); }
+      if (list.length < 3) {
+        const src = this.modelFactory.buildMesh(cfg);
+        list.push(buildMergedModel(src));
+        disposeObjectGeometries(src);
+      }
+      return instantiateMergedModel(list[Math.floor(Math.random() * list.length)]);
+    }
+
+    setLightMode(on) {
+      this.lightMode = !!on;
+      // いま出ている獲物も、その場で作り直す
+      for (const p of this.preys) {
+        if (!p.alive) continue;
+        const old = p.mesh;
+        const mesh = this.makePreyMesh(p.cfg);
+        mesh.position.copy(old.position);
+        mesh.quaternion.copy(old.quaternion);
+        mesh.scale.copy(old.scale);
+        this.scene.remove(old);
+        disposeObjectGeometries(old);
+        this.scene.add(mesh);
+        p.mesh = mesh;
+        p.outlines = [];
+        mesh.traverse((c) => { if (c.name === 'comic_outline') p.outlines.push(c); });
+        p.outlinesOn = true;
+      }
+      if (this.shark) this.rebuildWorldScenery(this.shark.phase);
+    }
+
+    loadSettings() {
+      try { return JSON.parse(localStorage.getItem('gs_settings_v1') || '{}') || {}; } catch { return {}; }
+    }
+    saveSettings() {
+      if (this._loadingSettings) return;
+      try {
+        localStorage.setItem('gs_settings_v1', JSON.stringify({
+          skinIdx: this.skinIdx, muted: this.audio.muted, sticks: this.sticksVisible,
+          fps24: this.limited24fps, flash: this.reducedFlash, shake: this.shakeLevel, light: !!this.lightMode
+        }));
+      } catch {}
+    }
+
+    loadFlag(key) {
+      try { return localStorage.getItem(key) === '1'; } catch { return false; }
+    }
+    saveFlag(key, on = true) {
+      try { localStorage.setItem(key, on ? '1' : '0'); } catch {}
     }
 
     resetState() {
@@ -5271,13 +5561,28 @@
         wantedLevel: 0,
         comboCount: 0,
         maxCombo: 0,
-        comboTimer: 0
+        comboTimer: 0,
+        counters: 0,
+        goldenEaten: 0,
+        damageTaken: 0,
+        bossesDefeated: 0
       };
+      this.lastHitstopAt = -10;
+      this.seenPreyIds = new Set();
 
       this.clearEntities();
       this.activeBossIds.clear();
       this.defeatedBosses = new Set();
       this.applyPhaseEnvironment(1, true);
+      // 前回のフェーズの BGM と、ダム決壊の水面を初期状態に戻す
+      this.audio.phase = 1;
+      this.audio.bossMode = false;
+      if (this.audio.vacuumFilter && this.audio.ctx) {
+        this.audio.vacuumFilter.frequency.cancelScheduledValues(this.audio.ctx.currentTime);
+        this.audio.vacuumFilter.frequency.setValueAtTime(20000, this.audio.ctx.currentTime);
+      }
+      this.floodPlane.visible = false;
+      this.floodPlane.position.y = -20;
       Object.values(this.sharkRig.attachments).forEach(att => { if (att) att.visible = false; });
       this.sharkRig.skinDorsal.color.setHex(0x1b4d89);
       this.sharkRig.skinDorsal.transparent = false;
@@ -5290,13 +5595,14 @@
       this.secGrowthBudget = 0;
       this.secGrowthWindow = 0;
       this.interludeTimer = 0;
-      this.forcedEvoTutorial = false;
-      this.hasCompletedFirstEvo = false;
+      this.hideEvolutionUI();
+      // 最初の進化の説明は、一度終えたら次の回からは出さない
+      this.hasCompletedFirstEvo = this.loadFlag('gs_first_evo_done');
       document.getElementById('forced-evo-backdrop').classList.remove('active');
       document.getElementById('forced-evo-callout').classList.remove('active');
       document.getElementById('hud-br').classList.remove('forced-evo-highlight');
-      document.getElementById('gauge-tut-callout').style.display = 'none';
-      document.getElementById('hud-tl').classList.remove('tut-highlight');
+      this.tutorial = null;
+      this.hideTutorialGuides();
       document.getElementById('hud-flood-badge').style.display = 'none';
       // Preserve selected skin across retries / game start!
       if (typeof this.skinIdx === 'number') this.shaderMgr.setSkin(COMIC_SKINS[this.skinIdx]);
@@ -5339,6 +5645,18 @@
         }
       }, { capture: true, passive: false });
 
+      document.querySelector('.controls-tip').innerHTML = CONTROLS_HTML;
+      document.getElementById('pause-controls').innerHTML = CONTROLS_HTML;
+      document.getElementById('tap-bite-guide').innerHTML = TOUCH_UI ? '👆 画面タップで<br>サメが噛みつく!!' : 'スペースキー か クリックで<br>サメが噛みつく!!';
+      if (!TOUCH_UI) {
+        document.getElementById('evo-top-notice').innerHTML = '⚡ 進化可能!!<br>右下の「進化」をクリック（Vキー）!! ⚡';
+        document.getElementById('forced-evo-callout').innerHTML = '⚡ 進化ポイント獲得!! ⚡<br>進化ptでサメを強化しよう！<br>下の「⚡ 進化」をクリックして<br>1回目の進化を実行!! ▼';
+      }
+      if (TOUCH_UI) {
+        document.getElementById('btn-resume').textContent = '再開する';
+        document.getElementById('evo-close-btn').textContent = 'あとで選ぶ';
+      }
+
       const unlockAudio = () => this.audio.init();
       window.addEventListener('pointerdown', unlockAudio, { once: true });
       window.addEventListener('keydown', unlockAudio, { once: true });
@@ -5350,7 +5668,8 @@
         this.audio.init();
         const m = this.audio.toggleMute();
         document.getElementById('btn-mute').textContent = m ? '🔇' : '🔊';
-        document.getElementById('title-mute-btn').textContent = m ? 'SFX: OFF' : 'SFX: ON';
+        document.getElementById('title-mute-btn').textContent = m ? '音: OFF' : '音: ON';
+        this.saveSettings();
       };
       const drawer = document.getElementById('menu-drawer');
       const btnMenu = document.getElementById('btn-menu');
@@ -5376,6 +5695,7 @@
         this.shaderMgr.setSkin(s);
         document.getElementById('btn-skin').textContent = 'SKIN: ' + s.slice(0, 4);
         document.getElementById('title-skin-btn').textContent = 'SKIN: ' + s;
+        this.saveSettings();
       };
       document.getElementById('btn-skin').addEventListener('click', cycleSkin);
       document.getElementById('title-skin-btn').addEventListener('click', cycleSkin);
@@ -5384,6 +5704,7 @@
         this.limited24fps = !this.limited24fps;
         e.target.textContent = `24FPS: ${this.limited24fps ? 'ON' : 'OFF'}`;
         e.target.classList.toggle('active-toggle', this.limited24fps);
+        this.saveSettings();
       });
 
       document.getElementById('btn-warp').addEventListener('click', () => this.debugGrowthJump());
@@ -5411,6 +5732,8 @@
         this.reducedFlash = !this.reducedFlash;
         e.target.textContent = `点滅軽減: ${this.reducedFlash ? 'ON' : 'OFF'}`;
         e.target.classList.toggle('active-toggle', this.reducedFlash);
+        document.body.classList.toggle('reduced-flash', this.reducedFlash);
+        this.saveSettings();
         e.target.blur();
       });
       if (IS_DEBUG) document.getElementById('btn-warp').style.display = 'block';
@@ -5460,6 +5783,10 @@
         this.keys.add(k);
         if (this.mode === 'PLAYING') {
           if (k === 'Escape' && !this.forcedEvoTutorial) { this.togglePause(); return; }
+          if ((k === 'Space' || k === 'KeyJ' || k === 'Enter') && !e.repeat && !this.forcedEvoTutorial && this.interludeTimer <= 0) {
+            e.preventDefault();
+            this.performManualBite();
+          }
           if (k === 'KeyV' && this.shark.evolutionPoints > 0) this.openEvolutionModal();
           if (IS_DEBUG && k === 'KeyL') this.debugGrowthJump();
           if (IS_DEBUG && k === 'Digit1') this.sharkRig.setEvolutionVisual('METAL_JAW_ARMOR', !this.sharkRig.attachments.METAL_JAW_ARMOR.visible);
@@ -5483,10 +5810,22 @@
         }
       });
       this.glCanvas.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button === 2) {
+          // 右ボタンを押している間だけ、マウスで舵を取る（離せば勝手に曲がらない）
+          this.mouseSteer = true;
+          this.mouseNDC.x = (e.clientX / window.innerWidth) * 2 - 1;
+          this.mouseNDC.y = -(e.clientY / window.innerHeight) * 2 + 1;
+          this.mouseNDC.active = true;
+          try { this.glCanvas.setPointerCapture(e.pointerId); } catch {}
+          return;
+        }
         if (this.mode === 'PLAYING' && !this.forcedEvoTutorial && this.interludeTimer <= 0 && e.button === 0) {
           this.performManualBite();
         }
       });
+      const endMouseSteer = (e) => { if (e.pointerType === 'mouse' && (e.type !== 'pointerup' || e.button === 2)) this.mouseSteer = false; };
+      this.glCanvas.addEventListener('pointerup', endMouseSteer);
+      this.glCanvas.addEventListener('pointercancel', endMouseSteer);
 
       // Stick Visibility Toggle
       const tZone = document.getElementById('touch-zone');
@@ -5512,6 +5851,7 @@
       const clearHeldInputs = () => {
         this.releaseSticks();
         this.keys.clear();
+        this.mouseSteer = false;
       };
       window.addEventListener('blur', clearHeldInputs);
       window.addEventListener('pagehide', clearHeldInputs);
@@ -5533,7 +5873,55 @@
         vZone.classList.toggle('hidden-stick', !this.sticksVisible);
         e.target.textContent = `STICK: ${this.sticksVisible ? 'ON' : 'OFF'}`;
         e.target.classList.toggle('active-toggle', this.sticksVisible);
+        this.saveSettings();
       });
+
+      // 画面の揺れ（強 → 弱 → 切）
+      const SHAKE_LEVELS = [['強', 1.0], ['弱', 0.4], ['切', 0]];
+      const shakeBtn = document.getElementById('btn-shake');
+      const applyShake = () => {
+        const [label, mult] = SHAKE_LEVELS[this.shakeLevel];
+        this.shakeMult = mult;
+        shakeBtn.textContent = `揺れ: ${label}`;
+        shakeBtn.classList.toggle('active-toggle', this.shakeLevel > 0);
+      };
+      shakeBtn.addEventListener('click', () => {
+        this.shakeLevel = (this.shakeLevel + 1) % SHAKE_LEVELS.length;
+        applyShake();
+        this.saveSettings();
+      });
+
+      // 描画（標準 → 軽量）
+      const applyGfxLabels = () => {
+        const label = `描画: ${this.lightMode ? '軽量' : '標準'}`;
+        for (const id of ['btn-gfx', 'title-gfx-btn']) {
+          const b = document.getElementById(id);
+          b.textContent = label;
+          b.classList.toggle('active-toggle', !!this.lightMode);
+        }
+      };
+      const toggleGfx = () => {
+        this.setLightMode(!this.lightMode);
+        applyGfxLabels();
+        this.saveSettings();
+      };
+      document.getElementById('btn-gfx').addEventListener('click', toggleGfx);
+      document.getElementById('title-gfx-btn').addEventListener('click', toggleGfx);
+
+      // 保存した設定を読み込む（端末の「視差効果を減らす」設定も初期値に反映する）
+      const prefersReduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      const st = this.loadSettings();
+      this.shakeLevel = st.shake ?? (prefersReduced ? 1 : 0);
+      applyShake();
+      if (typeof st.skinIdx === 'number' && st.skinIdx > 0) {
+        this.skinIdx = st.skinIdx - 1;
+        cycleSkin();
+      }
+      if (st.muted) toggleMute();
+      if (st.fps24) document.getElementById('btn-24fps').click();
+      if (st.flash ?? prefersReduced) document.getElementById('btn-flash').click();
+      if (typeof st.sticks === 'boolean' && st.sticks !== this.sticksVisible) stickBtn.click();
+      if (st.light) { this.setLightMode(true); applyGfxLabels(); }
     }
 
     bindStick(control, update, resetPosition) {
@@ -5623,29 +6011,62 @@
       document.getElementById('hud').classList.add('active');
       this.showIssueCaption(1);
       this.pushNews(NEWS_BY_PHASE[1][0]);
-      // First-play Tutorial: Screen Tap Bite + Top-Left Growth Gauge Explanation
-      let seenGuide = false;
-      try { seenGuide = localStorage.getItem('gs_tap_guide_v2') === '1'; } catch {}
-      if (!seenGuide) {
-        const gEl = document.getElementById('tap-bite-guide');
-        const gaugeEl = document.getElementById('gauge-tut-callout');
-        const tlEl = document.getElementById('hud-tl');
-        gEl.style.display = 'block';
-        gaugeEl.style.display = 'block';
-        tlEl.classList.add('tut-highlight');
-        this.tapGuideActive = true;
-        clearTimeout(this._guideTo);
-        this._guideTo = setTimeout(() => {
-          gEl.style.display = 'none';
-          gaugeEl.style.display = 'none';
-          tlEl.classList.remove('tut-highlight');
-          this.tapGuideActive = false;
-          try { localStorage.setItem('gs_tap_guide_v2', '1'); } catch {}
-        }, 7000);
-      }
+      // 初回の案内は一度に1つずつ出す：見出し → 噛みつき（実際に噛むまで） → 成長ゲージ
+      this.hideTutorialGuides();
+      this.tutorial = this.loadFlag('gs_tap_guide_v2') ? null : { step: 'WAIT_CAPTION', timer: 2.9 };
       this.prevJawPos.copy(this.shark.pos);
       this.curJawPos.copy(this.shark.pos);
       for (let i = 0; i < (IS_MOBILE ? 75 : 100); i++) this.spawnPrey(false, i < 35);
+    }
+
+    showPreyCard(cfg) {
+      // ボス戦中と、連続で出すときは控える（案内の出しすぎを防ぐ）
+      if (this.boss) return;
+      const now = performance.now();
+      if (now - (this._preyCardAt || 0) < 3500) return;
+      this._preyCardAt = now;
+      document.getElementById('prey-card-name').textContent = cfg.nameJa;
+      document.getElementById('prey-card-flavor').textContent = cfg.flavor || '';
+      const el = document.getElementById('prey-card');
+      el.classList.add('show');
+      clearTimeout(this._preyCardTo);
+      this._preyCardTo = setTimeout(() => el.classList.remove('show'), 2600);
+    }
+
+    hideTutorialGuides() {
+      document.getElementById('tap-bite-guide').style.display = 'none';
+      document.getElementById('gauge-tut-callout').style.display = 'none';
+      document.getElementById('hud-tl').classList.remove('tut-highlight');
+    }
+
+    updateTutorial(dt) {
+      const t = this.tutorial;
+      if (!t || this.mode !== 'PLAYING' || this.interludeTimer > 0) return;
+      if (this.forcedEvoTutorial) { this.hideTutorialGuides(); return; }
+      t.timer -= dt;
+      if (t.step === 'WAIT_CAPTION' && t.timer <= 0) {
+        document.getElementById('tap-bite-guide').style.display = 'block';
+        this.tutorial = { step: 'BITE', timer: Infinity }; // 実際に噛むまで消さない
+      } else if (t.step === 'BITE') {
+        document.getElementById('tap-bite-guide').style.display = 'block';
+        if (t.timer <= 0) { document.getElementById('tap-bite-guide').style.display = 'none'; this.tutorial = { step: 'WAIT_GAUGE', timer: 0.5 }; }
+      } else if (t.step === 'WAIT_GAUGE' && t.timer <= 0) {
+        const callout = document.getElementById('gauge-tut-callout');
+        const bar = document.getElementById('hud-growth-bar-wrap').getBoundingClientRect();
+        callout.style.top = `${Math.round(bar.bottom + 12)}px`;
+        callout.style.display = 'block';
+        document.getElementById('hud-tl').classList.add('tut-highlight');
+        this.tutorial = { step: 'GAUGE', timer: 5.5 };
+      } else if (t.step === 'GAUGE') {
+        if (t.timer <= 0) {
+          this.hideTutorialGuides();
+          this.tutorial = null;
+          this.saveFlag('gs_tap_guide_v2');
+        } else {
+          document.getElementById('gauge-tut-callout').style.display = 'block';
+          document.getElementById('hud-tl').classList.add('tut-highlight');
+        }
+      }
     }
 
     showIssueCaption(phase) {
@@ -5677,6 +6098,8 @@
     getEvoStats() {
       const st = {
         biteDamageMult: 1.0,
+        bigTargetMult: 1.0,
+        turnRateMult: 1.0,
         damageReduction: 0.0,
         instantEatRatioBonus: 0.0,
         biteRangeBonus: 0.0,
@@ -5695,6 +6118,8 @@
         if (!this.shark.unlockedEvolutions.has(ev.id) || !ev.effect) continue;
         const e = ev.effect;
         if (e.biteDamageMult) st.biteDamageMult *= e.biteDamageMult;
+        if (e.bigTargetMult) st.bigTargetMult *= e.bigTargetMult;
+        if (e.turnRateMult) st.turnRateMult *= e.turnRateMult;
         if (e.damageReduction) st.damageReduction = Math.min(0.75, Math.max(st.damageReduction, e.damageReduction));
         if (e.instantEatRatioBonus) st.instantEatRatioBonus += e.instantEatRatioBonus;
         if (e.biteRangeBonus) st.biteRangeBonus += e.biteRangeBonus;
@@ -5730,21 +6155,17 @@
 
     // ================= SHARK ACTIONS (PRODUCTION BITE LUNGE & COUNTERPLAY) =================
     performManualBite() {
-      if (this.tapGuideActive) {
-        this.tapGuideActive = false;
+      if (this.tutorial && (this.tutorial.step === 'BITE' || this.tutorial.step === 'WAIT_CAPTION')) {
         document.getElementById('tap-bite-guide').style.display = 'none';
-        setTimeout(() => {
-          document.getElementById('gauge-tut-callout').style.display = 'none';
-          document.getElementById('hud-tl').classList.remove('tut-highlight');
-        }, 2500);
-        try { localStorage.setItem('gs_tap_guide_v2', '1'); } catch {}
+        this.tutorial = { step: 'WAIT_GAUGE', timer: 1.2 };
       }
       const s = this.shark;
       if (s.biteCd > 0) return;
-      s.biteCd = 0.28;
+      s.biteCd = 0.42;
       s.biteActiveTimer = 0.22; // Active snap window with expanded capture radius & 1.45x crit bite!
       this.sharkRig.triggerBite(false);
-      this.audio.playBite(s.phase, this.stats.comboCount);
+      // 空振りは軽い「カチッ」。当たったときの重い音は、食べた・噛んだ処理の側で鳴らす
+      this.audio.playWhiff();
 
       const jawPos = this.sharkRig.getJawWorldPos(new THREE.Vector3());
       const fwd = new THREE.Vector3(
@@ -5774,18 +6195,39 @@
       s.lungeVel.copy(bestDir).multiplyScalar(s.internalScale * 15.0);
       this.particles.emitBurst(jawPos, 10, 0x00f0ff, s.internalScale * 0.35, false, 2);
 
-      // Laser Shark skill (if unlocked): deals visible ranged damage instead of silent off-screen instant-eat
+      // レーザー・シャーク：口から正面へ一直線のレーザー。線の近くにいる獲物をまとめて削る
       if (this.getEvoStats().beamSkillEnabled) {
-        const beamEnd = jawPos.clone().addScaledVector(fwd, s.internalScale * 11);
-        this.particles.emitBurst(beamEnd, 16, 0xff2a85, s.internalScale * 0.45, false, 0);
+        const S = s.internalScale;
+        const beamEnd = jawPos.clone().addScaledVector(fwd, S * 14);
+        for (let k = 1; k <= 7; k++) {
+          this.particles.emitBurst(jawPos.clone().lerp(beamEnd, k / 7), 3, 0xff2a85, S * 0.35, false, 0);
+        }
+        this.showBeam(jawPos, beamEnd, S);
         for (const p of this.preys) {
-          if (p.alive && p.pos.distanceTo(beamEnd) < s.internalScale * 3.2) {
+          if (p.alive && distPointToSegmentSq(p.pos, jawPos, beamEnd) < Math.pow(S * 1.4 + p.internalRadius, 2)) {
             p.hp -= 35;
             p.hitFlash = 0.14;
             if (p.hp <= 0) this.eatPrey(p);
           }
         }
       }
+    }
+
+    showBeam(from, to, S) {
+      if (!this._beamMesh) {
+        const geo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true);
+        geo.translate(0, 0.5, 0);
+        geo.rotateX(Math.PI / 2);
+        this._beamMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff2a85, transparent: true, opacity: 0.85, depthWrite: false }));
+        this._beamMesh.frustumCulled = false;
+        this.scene.add(this._beamMesh);
+      }
+      const m = this._beamMesh;
+      m.position.copy(from);
+      m.lookAt(to);
+      m.scale.set(S * 0.25, S * 0.25, from.distanceTo(to));
+      m.visible = true;
+      this._beamTimer = 0.12;
     }
 
     debugGrowthJump() {
@@ -5826,19 +6268,11 @@
         this.shark.hp = Math.min(this.shark.maxHp, this.shark.hp + 25);
         this.onomatopoeia.spawn('STAGE UP!!', this.shark.pos, this.shark.internalScale * 1.3, 'gold');
         this.audio.playGolden(false);
-        const lines = NEWS_BY_PHASE[this.shark.phase];
-        this.pushNews(lines[Math.min(lines.length - 1, (newStage % lines.length))]);
+        this.pushNews(`速報!! 巨大サメが体長 ${formatLength(this.shark.realLengthMeters)} に成長!! STAGE ${newStage} 突破!!`);
       }
 
       // Check Boss Spawn Thresholds
-      const bossTriggers = {
-        1: { len: 42.0, id: 'boss_kraken' },
-        2: { len: 420.0, id: 'boss_robo' },
-        3: { len: 16000.0, id: 'boss_skyark' },
-        4: { len: 6.5e8, id: 'boss_sun' },
-        5: { len: 1.2e17, id: 'boss_milkyway' }
-      };
-      const bt = bossTriggers[this.shark.phase];
+      const bt = BOSS_TRIGGER[this.shark.phase];
       if (bt && len >= bt.len && !this.boss && !this.defeatedBosses.has(bt.id)) {
         this.spawnBossForPhase(this.shark.phase);
       }
@@ -5987,11 +6421,13 @@
       if (this.preys.length >= maxActive) return;
 
       const canSpawnExplosive = this.preys.filter(p => p.alive && EXPLOSIVE_GIMMICKS.has(p.cfg.gimmick)).length < 2;
+      const aliveSingles = new Set(this.preys.filter(p => p.alive && SINGLE_GIMMICKS.has(p.cfg.gimmick)).map(p => p.cfg.gimmick));
       const phasePreys = PREY_CATALOG.filter(p =>
         p.phase === this.shark.phase &&
         !p.isBoss &&
         (forceGolden ? p.isGoldenRare : !p.isGoldenRare) &&
-        (canSpawnExplosive || !EXPLOSIVE_GIMMICKS.has(p.gimmick))
+        (canSpawnExplosive || !EXPLOSIVE_GIMMICKS.has(p.gimmick)) &&
+        !aliveSingles.has(p.gimmick)
       );
       if (phasePreys.length === 0) return;
 
@@ -6005,9 +6441,11 @@
         const gimmicks = phasePreys.filter(p => p.gimmick !== 'NONE' && this.shark.stage >= p.minStage);
         const stagePool = phasePreys.filter(p => this.shark.stage >= p.minStage && this.shark.stage <= p.maxStage);
         const r = Math.random();
-        if (this.shark.phase === 2 && r < 0.78) {
-          // Ultra-dense downtown skyline: 78% chunky skyscrapers, houses & city facilities right in view!
-          const cityArch = phasePreys.filter(p => p.shape === 'house' || p.shape === 'building' || p.shape === 'gas' || p.shape === 'power');
+        const cityArch = this.shark.phase === 2
+          ? phasePreys.filter(p => (p.shape === 'house' || p.shape === 'building') && this.shark.stage >= p.minStage && this.shark.stage <= p.maxStage)
+          : [];
+        if (r < 0.40 && cityArch.length > 0) {
+          // 街並み（家・ビル）は4割まで。残りは車・市民・電車・戦車などに回す
           cfg = cityArch[Math.floor(Math.random() * cityArch.length)];
         } else if (r < 0.82 && edible.length > 0) {
           cfg = edible[Math.floor(Math.random() * edible.length)];
@@ -6060,7 +6498,9 @@
         this.shark.pos.z + Math.cos(angle) * dist
       );
 
-      const mesh = this.modelFactory.buildMesh(cfg);
+      const mesh = this.makePreyMesh(cfg);
+      const outlines = [];
+      mesh.traverse((c) => { if (c.name === 'comic_outline') outlines.push(c); });
       mesh.position.copy(pos);
       mesh.scale.setScalar(internalRadius * 1.15);
       this.scene.add(mesh);
@@ -6084,12 +6524,15 @@
         attackCd: 1.6 + Math.random() * 1.8,
         strikeDir: new THREE.Vector3(0, 0, 1),
         legacyDustTimer: -1,
-        warpTimer: 2.0
+        warpTimer: 2.0,
+        outlines,
+        outlinesOn: true
       });
 
       if (cfg.isGoldenRare) {
         this.audio.playGolden(false);
-        this.pushNews(`★ レア出現!! ${cfg.nameJa} を目撃!! 最優先で捕食せよ!! ★`);
+        this.pushNews(`★ レア出現!! ${cfg.nameJa} を目撃!! 噛みつき突進で追いつけ!! ★`);
+        this.showCutin('★ GOLDEN!! ★', `${cfg.nameJa}が出現!! 噛みつき突進で追いつけ!!`, 1300);
       }
     }
 
@@ -6137,9 +6580,10 @@
       };
 
       this.audio.playBossWarning();
-      this.showCutin(`VS ${cfg.nameJa}!!`, '部位を噛み砕き、最後は丸呑みフィニッシュ!!', 1400);
+      const bossName = cfg.nameJa.replace(/（ボス）$/, '');
+      this.showCutin(`VS ${bossName}!!`, '攻撃の直前に噛んでダウンを奪え!! 最後はダウン中に丸呑み!!', 1600);
       document.getElementById('boss-hud').classList.add('active');
-      document.getElementById('boss-name').textContent = `VS ${cfg.nameJa}!!`;
+      document.getElementById('boss-name').textContent = `VS ${bossName}!!`;
       document.getElementById('boss-hp-fill').style.width = '100%';
     }
 
@@ -6158,9 +6602,13 @@
       const suctionMult = evo.suctionRadiusMult;
       const fwdDir = new THREE.Vector3(Math.sin(s.yaw), Math.sin(s.pitch), Math.cos(s.yaw)).normalize();
 
+      // 食べられる大きさの境目（体長との比）
+      //  - TOUCH_EAT 以下：体が触れるだけで食べられる小さな獲物
+      //  - BITE_EAT 以下：噛みついたときだけ丸呑みできる
+      //  - それより大きい：噛みついて体力を削る必要がある
       const instantBonus = evo.instantEatRatioBonus;
-      const instantLimit = 0.68 + instantBonus;
-      const isDrill = (s.subAction === 'DRILL_RUSH');
+      const touchLimit = TOUCH_EAT_RATIO + instantBonus * 0.5;
+      const instantLimit = BITE_EAT_RATIO + instantBonus;
 
       // 1. Prey Collisions
       for (let i = 0; i < this.preys.length; i++) {
@@ -6170,11 +6618,14 @@
         const toPrey = p.pos.clone().sub(jawPos);
         const distJaw = toPrey.length();
         const sizeRatio = p.cfg.realSizeMeters / s.realLengthMeters;
-        const canEatNow = (sizeRatio <= instantLimit || p.hp <= 0 || (isDrill && sizeRatio <= 0.95) || p.cfg.isGoldenRare || p.cfg.gimmick !== 'NONE');
+        const isGimmick = p.cfg.gimmick !== 'NONE';
+        const canTouchEat = sizeRatio <= touchLimit || p.cfg.isGoldenRare;
+        const canBiteEat = canTouchEat || sizeRatio <= instantLimit || p.hp <= 0 || (isGimmick && sizeRatio <= 1.25);
 
-        // Gentle Mouth Vacuum ONLY when prey is directly IN FRONT of jaws & visible
+        // 口の正面にいる、食べられる獲物だけを軽く吸い寄せる
         const vacRange = S * (isBiteActive ? 2.4 : 1.7) * suctionMult;
-        if (canEatNow && distJaw < vacRange + p.internalRadius && distJaw > 0.01) {
+        const vacuumable = canTouchEat || (isBiteActive && canBiteEat);
+        if (vacuumable && distJaw < vacRange + p.internalRadius && distJaw > 0.01) {
           const dirToP = toPrey.clone().divideScalar(distJaw);
           if (dirToP.dot(fwdDir) > 0.35) {
             p.pos.addScaledVector(dirToP, -(isBiteActive ? 0.24 : 0.12) * S * suctionMult);
@@ -6194,17 +6645,15 @@
         // Continuous swept segment check
         const segDistSq = distPointToSegmentSq(p.pos, this.prevJawPos, jawPos);
         const hitThresh = headR + p.internalRadius;
-        const bodyHit = canEatNow && (s.pos.distanceTo(p.pos) < bodyR + p.internalRadius);
+        const jawHit = segDistSq <= hitThresh * hitThresh;
+        const bodyHit = canTouchEat && (s.pos.distanceTo(p.pos) < bodyR + p.internalRadius);
 
-        if (segDistSq > hitThresh * hitThresh && !bodyHit) continue;
+        if (!jawHit && !bodyHit) continue;
         if (p.hitCd > 0) continue;
 
-        // PREDATION & BITE-DOWN HP LOGIC:
-        // - Smaller/edible targets: instant swallow!
-        // - Larger non-boss targets (ANY sizeRatio > instantLimit): BITING chips down their HP so you CAN eat them once HP hits 0!
         const inCounterWindow = (p.aiState === 'TELEGRAPH' && p.telegraphTimer <= 0.45) || (p.aiState === 'STRIKE' && p.strikeTimer >= 0.38);
-        if (isBiteActive && inCounterWindow) {
-          // JUST-BITE COUNTER!! (0 damage to shark, 2.5x dmg [2.0x whale], 2.5s STUNNED spin + 0.06s hitstop!)
+        if (isBiteActive && jawHit && inCounterWindow) {
+          // JUST-BITE COUNTER!! (0 damage to shark, 2.5x dmg [2.0x whale], 2.5s STUNNED spin)
           const counterMult = p.cfg.id === 'whale' ? 2.0 : 2.5;
           const biteDmg = 30 * evo.biteDamageMult * counterMult;
           p.hp -= biteDmg;
@@ -6216,6 +6665,7 @@
           p.strikeTimer = 0;
           p.attackCd = 3.2;
           s.invulnTimer = Math.max(s.invulnTimer, 0.48);
+          this.stats.counters++;
 
           const away = p.pos.clone().sub(s.pos);
           if (away.lengthSq() < 1e-4) away.set(0, 0, 1);
@@ -6226,21 +6676,20 @@
           this.sharkRig.triggerBite(true);
           this.audio.playGolden(false);
           this.particles.emitBurst(p.pos, 32, 0xffe600, S * 0.85, false, 2);
-          this.onomatopoeia.spawn('COUNTER!! 撃退!!', p.pos, S * 1.45, 'gold');
-          this.hitstopTimer = 0.06;
+          this.onomatopoeia.spawn('COUNTER!! 撃退!!', p.pos, S * 1.45, 'gold', true);
+          this.requestHitstop(0.06);
           this.triggerShake(0.24, 0.52);
 
           if (p.mesh.userData.magmaCore) p.mesh.userData.magmaCore.visible = true;
           if (p.mesh.userData.shieldMesh) p.mesh.userData.shieldMesh.material.opacity = 0.95;
           if (p.hp <= 0) this.eatPrey(p);
-        } else if (canEatNow) {
+        } else if (canTouchEat || (isBiteActive && jawHit && canBiteEat)) {
           this.eatPrey(p);
-        } else {
-          // Larger target: biting ALWAYS reduces HP! Active Bite Lunge deals 1.5x damage!
-          const critMult = isBiteActive ? 1.5 : 1.0;
+        } else if (isBiteActive && jawHit) {
+          // 大きな獲物：噛みついたときだけ体力を削れる
           const scaleFactor = sizeRatio > 1.2 ? 0.65 : 1.0;
-          const dmgMult = evo.biteDamageMult * critMult * scaleFactor;
-          const biteDmg = 28 * dmgMult;
+          const bigMult = sizeRatio > instantLimit ? evo.bigTargetMult : 1.0;
+          const biteDmg = 28 * 1.5 * evo.biteDamageMult * bigMult * scaleFactor;
           p.hp -= biteDmg;
           p.hitCd = 0.28;
           p.hitFlash = 0.14;
@@ -6251,22 +6700,25 @@
           this.sharkRig.triggerBite(true);
           this.audio.playBite(s.phase, this.stats.comboCount, p.cfg.category, sizeRatio);
           this.particles.emitBurst(p.pos, 16, 0xffe600, S * 0.45, false, -5);
-          this.onomatopoeia.spawn(isBiteActive ? 'CRIT BITE!!' : 'GNAW!', p.pos, S * 0.85, isBiteActive ? 'gold' : 'fire');
-          this.hitstopTimer = 0.03;
+          this.onomatopoeia.spawn('CRIT BITE!!', p.pos, S * 0.85, 'gold');
+          this.requestHitstop(0.03);
           this.triggerShake(0.14, 0.26);
-
-          // Take damage if ramming a striking/larger hostile without active bite
-          if ((p.aiState === 'STRIKE' || (sizeRatio > 1.35 && p.cfg.isHostile)) && !isBiteActive && !isDrill) {
+          if (p.hp <= 0) this.eatPrey(p);
+        } else if (jawHit) {
+          // 噛まずに大きな獲物へぶつかった：はね返される（攻撃中や格上の敵ならダメージ）
+          p.hitCd = 0.45;
+          const push = s.pos.clone().sub(p.pos);
+          push.y = s.phase === 2 ? 0 : push.y;
+          if (push.lengthSq() < 1e-4) push.set(-Math.sin(s.yaw), 0, -Math.cos(s.yaw));
+          s.lungeVel.copy(push.normalize()).multiplyScalar(S * 7.0);
+          this.onomatopoeia.spawn('BONK!', p.pos, S * 0.7, 'cyan');
+          if (p.aiState === 'STRIKE' || (sizeRatio > 1.35 && p.cfg.isHostile)) {
             this.damageShark(Math.max(6, p.cfg.damageToShark * (p.aiState === 'STRIKE' ? 0.85 : 0.45)));
-          }
-
-          if (p.hp <= 0) {
-            this.eatPrey(p);
           }
         }
       }
 
-      // 2. Boss Collision (Smooth Recoil + Down 2x Multiplier + 15% Swallow Finish!)
+      // 2. Boss Collision：噛みついたときだけダメージ。噛まずにぶつかるとはね返されてダメージを受ける
       if (this.boss) {
         const b = this.boss;
         let distBoss = jawPos.distanceTo(b.pos);
@@ -6279,28 +6731,38 @@
           this.sharkRig.triggerBite(false);
         }
         if (b.hitCd <= 0 && distBoss < headR + b.internalRadius) {
-          b.hitCd = 0.52;
-          b.hitFlash = 0.12;
-          const bossCounter = isBiteActive && (b.strikeTimer > 0 || (b.telegraphTimer > 0 && b.telegraphTimer <= 0.45));
-          if (bossCounter && b.downTimer <= 0) {
-            b.downTimer = 2.5;
-            b.telegraphTimer = 0;
-            b.strikeTimer = 0;
-            this.onomatopoeia.spawn('BOSS COUNTER!!', b.pos, S * 1.7, 'gold');
-            this.audio.playGolden(false);
+          if (isBiteActive) {
+            b.hitCd = 0.52;
+            b.hitFlash = 0.12;
+            const bossCounter = (b.strikeTimer > 0 || (b.telegraphTimer > 0 && b.telegraphTimer <= 0.45));
+            if (bossCounter && b.downTimer <= 0) {
+              b.downTimer = 2.5;
+              b.telegraphTimer = 0;
+              b.strikeTimer = 0;
+              this.stats.counters++;
+              this.onomatopoeia.spawn('BOSS COUNTER!!', b.pos, S * 1.7, 'gold', true);
+              this.audio.playGolden(false);
+            }
+            // ダウン中は大ダメージ、それ以外は4割。カウンターでダウンを奪うのが近道になる
+            const downMult = b.downTimer > 0 ? 1.8 : 0.4;
+            const dmgMult = evo.biteDamageMult * evo.bigTargetMult * 1.45 * downMult;
+            // 瀕死（16%以下）のボスは、ダウン中に噛んだときだけ丸呑みフィニッシュ
+            if (b.hp <= b.maxHp * 0.16 && b.downTimer > 0) {
+              this.damageBoss(b.hp + 999);
+            } else {
+              this.damageBoss(55 * dmgMult, b.downTimer > 0);
+            }
+            this.sharkRig.triggerBite(true);
+            s.lungeVel.set(0, 0, 0);
+          } else if ((b.bumpCd || 0) <= 0 && distBoss < bodyR + b.internalRadius * 0.9) {
+            b.bumpCd = 1.2;
+            const push = s.pos.clone().sub(b.pos);
+            if (s.phase === 2) push.y = 0;
+            if (push.lengthSq() < 1e-4) push.set(-Math.sin(s.yaw), 0, -Math.cos(s.yaw));
+            s.lungeVel.copy(push.normalize()).multiplyScalar(S * 12.0);
+            this.onomatopoeia.spawn('BONK!!', jawPos, S * 1.0, 'cyan');
+            if (b.downTimer <= 0) this.damageShark(Math.max(8, b.cfg.damageToShark * 0.6));
           }
-          const critMult = isBiteActive ? 1.45 : 1.0;
-          const downMult = b.downTimer > 0 ? 2.0 : 1.0;
-          const dmgMult = evo.biteDamageMult * critMult * downMult;
-
-          // 15% HP Swallow Finish!
-          if (b.hp <= b.maxHp * 0.16) {
-            this.damageBoss(b.hp + 999);
-          } else {
-            this.damageBoss(55 * dmgMult, b.downTimer > 0 || bossCounter);
-          }
-          this.sharkRig.triggerBite(true);
-          s.lungeVel.set(0, 0, 0);
         }
       }
 
@@ -6313,7 +6775,7 @@
           this.audio.playBite(s.phase, this.stats.comboCount + 1);
           this.particles.emitBurst(pr.pos, 18, 0xffe600, S * 0.65, false, 0);
           this.onomatopoeia.spawn('CHOMP BREAK!!', pr.pos, S * 1.25, 'gold');
-          this.hitstopTimer = 0.04;
+          this.requestHitstop(0.04);
           this.scene.remove(pr.mesh);
           this.projectiles.splice(i, 1);
           continue;
@@ -6357,8 +6819,9 @@
       this.stats.comboCount++;
       this.stats.maxCombo = Math.max(this.stats.maxCombo, this.stats.comboCount);
       const evoE = this.getEvoStats();
-      this.stats.comboTimer = (this.shark.isBoosting ? 4.5 : 3.5) + evoE.comboTimeBonus;
-      const comboMult = 1.0 + Math.min(this.stats.comboCount * 0.03, 1.5);
+      // コンボは続くほど受付時間が短くなり、成長への上乗せも最大1.5倍まで
+      this.stats.comboTimer = Math.max(1.6, 3.5 - this.stats.comboCount * 0.02) + evoE.comboTimeBonus;
+      const comboMult = 1.0 + Math.min(this.stats.comboCount * 0.02, 0.5);
       const riskMult = p.cfg.isHostile ? 2.2 : 1.0;
 
       // Stage-Calibrated Exponential Growth:
@@ -6371,21 +6834,25 @@
       if (this.shark.phase >= 4) {
         const logSpan = Math.log(Math.max(2, curSt.maxLen / curSt.minLen));
         // 1.5x richer swarm pace (~21 bites per cosmic stage)
-        const targetLogStep = (logSpan / 21.0) * (0.65 + 0.55 * Math.min(1.0, ratio)) * Math.min(1.45, 0.85 + comboMult * 0.25) * (p.cfg.isGoldenRare ? 2.0 : 1.0) * gUpgrade;
+        const targetLogStep = (logSpan / 30.0) * (0.65 + 0.55 * Math.min(1.0, ratio)) * Math.min(1.45, 0.85 + comboMult * 0.25) * (p.cfg.isGoldenRare ? 2.0 : 1.0) * gUpgrade;
         const clampedStep = Math.min(targetLogStep, logSpan * 0.12);
         deltaLen = this.shark.realLengthMeters * (Math.exp(clampedStep) - 1);
       } else {
         // 1.5x richer swarm pace across Ocean, Land & Sky (0.052 base)
-        deltaLen = Math.pow(ratio, 1.35) * this.shark.realLengthMeters * 0.052 * comboMult * Math.min(1.5, riskMult) * gUpgrade;
+        deltaLen = Math.pow(ratio, 1.35) * this.shark.realLengthMeters * 0.034 * comboMult * Math.min(1.5, riskMult) * gUpgrade;
         if (p.cfg.isGoldenRare) deltaLen *= 2.0;
         deltaLen = Math.min(deltaLen, this.shark.realLengthMeters * 0.12);
       }
       if (fromChain) deltaLen *= 0.35;
       const nowS = performance.now() * 0.001;
-      if (nowS - this.secGrowthWindow > 1.0) { this.secGrowthWindow = nowS; this.secGrowthBudget = this.shark.realLengthMeters * 0.28; }
+      if (nowS - this.secGrowthWindow > 1.0) { this.secGrowthWindow = nowS; this.secGrowthBudget = this.shark.realLengthMeters * 0.18; }
       deltaLen = Math.min(deltaLen, Math.max(0, this.secGrowthBudget));
       this.secGrowthBudget = Math.max(0, this.secGrowthBudget - deltaLen);
       this.shark.realLengthMeters += deltaLen;
+      // ボスが出ている間は、そのフェーズの上限より大きくならない（ボスを無視して先へ進めないように）
+      if (this.boss) {
+        this.shark.realLengthMeters = Math.min(this.shark.realLengthMeters, Math.max(BOSS_TRIGGER[this.shark.phase].len, PHASE_MAX_LEN[this.shark.phase] * 0.98));
+      }
 
       // Mass & Damage Yen
       this.stats.totalMassTons += p.cfg.massTons;
@@ -6403,6 +6870,7 @@
 
       // Golden Rare Rewards (Bonus Evolution PT + Full HP Recovery!)
       if (p.cfg.isGoldenRare) {
+        this.stats.goldenEaten++;
         this.shark.evolutionPoints += 1;
         this.shark.hp = this.shark.maxHp;
         this.audio.playGolden(true);
@@ -6413,12 +6881,18 @@
       // Particles (40% outward / 60% mouth absorption) & Onomatopoeia
       const words = p.cfg.onomatopoeia;
       const word = words[Math.floor(Math.random() * words.length)];
-      this.onomatopoeia.spawn(word, p.pos, this.shark.internalScale * (p.cfg.isGoldenRare ? 1.85 : 1.38), p.cfg.isGoldenRare ? 'gold' : 'fire');
+      this.onomatopoeia.spawn(word, p.pos, this.shark.internalScale * (p.cfg.isGoldenRare ? 1.85 : 1.38), p.cfg.isGoldenRare ? 'gold' : 'fire', p.cfg.isGoldenRare || ratio >= 0.5);
+      // 初めて食べた獲物は、名前と紹介文を少しだけ表示する
+      if (!this.seenPreyIds.has(p.cfg.id)) {
+        this.seenPreyIds.add(p.cfg.id);
+        this.showPreyCard(p.cfg);
+      }
       this.particles.emitBurst(p.pos, p.cfg.isGoldenRare ? 40 : 18, p.cfg.color, this.shark.internalScale * 0.55, true, this.shark.phase >= 4 ? 0 : -5);
 
       if (p.cfg.gimmick !== 'NONE' && !fromChain) this.triggerGimmick(p);
 
-      this.hitstopTimer = 0.03;
+      // 自分と同じくらい大きい獲物やレアを食べたときだけ、画面を一瞬止めて手応えを出す
+      if (!fromChain && (ratio >= 0.5 || p.cfg.isGoldenRare)) this.requestHitstop(0.03);
       this.triggerShake(0.12, 0.22);
       this.checkProgression(false);
     }
@@ -6454,10 +6928,12 @@
         this.particles.emitBurst(p.pos, 42, 0x00f0ff, S * 0.9, false, 0);
         if (mult > 1) this.onomatopoeia.spawn('FLOOD ELECTRIC 3X!!', p.pos, S * 1.4, 'cyan');
         this.pushNews(NEWS_BY_PHASE[2][6]);
+        let chainCount = 0;
         for (const o of this.preys) {
           if (o.alive && o !== p && o.pos.distanceTo(p.pos) < rad) {
             o.stunTimer = 5.0;
-            if (mult > 1) this.eatPrey(o, true);
+            // 水没中の感電で一緒に食べるのは5体まで
+            if (mult > 1 && chainCount < 5) { this.eatPrey(o, true); chainCount++; }
           }
         }
       } else if (g === 'DAM_FLOOD') {
@@ -6471,12 +6947,12 @@
 
     damageBoss(amount, isWeakHit = false) {
       if (!this.boss) return;
-      const capped = (amount > this.boss.maxHp) ? amount : Math.min(amount, this.boss.maxHp * 0.12);
+      const capped = (amount > this.boss.maxHp) ? amount : Math.min(amount, this.boss.maxHp * 0.05);
       this.boss.hp = Math.max(0, this.boss.hp - capped);
       this.audio.playBite(this.shark.phase, this.stats.comboCount + 2, this.boss ? this.boss.cfg.category : 'MECHANICAL', 1.2);
       this.particles.emitBurst(this.boss.pos, 28, isWeakHit ? 0xffe600 : 0xff6a00, this.shark.internalScale * 0.8, true, -3);
       this.onomatopoeia.spawn(isWeakHit ? 'WEAK CRIT!!' : 'CRUNCH!!', this.boss.pos, this.shark.internalScale * 1.3, isWeakHit ? 'gold' : 'fire');
-      this.hitstopTimer = 0.06;
+      this.requestHitstop(0.06);
       this.triggerShake(0.22, 0.55);
 
       // Visual part break feedback
@@ -6516,12 +6992,13 @@
       document.getElementById('boss-hud').classList.remove('active');
 
       this.defeatedBosses.add(b.cfg.id);
+      this.stats.bossesDefeated++;
 
       this.stats.totalDamageYen += b.cfg.damageValueYen;
       this.stats.totalMassTons += b.cfg.massTons;
       this.shark.evolutionPoints += 1;
       this.impactFlash = 0.35; // Black & White Impact Frame!
-      this.hitstopTimer = 0.14;
+      this.requestHitstop(0.14, true);
       this.triggerShake(0.45, 0.9);
       this.audio.playChainExplosion();
       this.onomatopoeia.spawn(b.cfg.onomatopoeia[0] || 'GIGA CHOMP!!', b.pos, this.shark.internalScale * 2.0, 'gold');
@@ -6550,7 +7027,9 @@
     damageShark(amount) {
       if (this.shark.invulnTimer > 0) return;
       const red = this.getEvoStats().damageReduction;
+      const before = this.shark.hp;
       this.shark.hp = Math.max(0, this.shark.hp - amount * (1 - red));
+      this.stats.damageTaken += before - this.shark.hp;
       this.shark.invulnTimer = 0.30;
       this.damageFlash = 0.38;
       this.triggerShake(0.22, 0.50);
@@ -6571,9 +7050,19 @@
       this.audio.wanted = w;
     }
 
+    // 当たった瞬間に画面を一瞬止める演出。続けて起きるとカクつくので、間を空ける
+    requestHitstop(dur, force = false) {
+      const now = performance.now() * 0.001;
+      if (!force && now - this.lastHitstopAt < 0.25) return;
+      this.lastHitstopAt = now;
+      this.hitstopTimer = Math.max(this.hitstopTimer, dur);
+    }
+
     triggerShake(dur, amp) {
+      const m = this.shakeMult ?? 1;
+      if (m <= 0) return;
       this.shakeTime = Math.max(this.shakeTime, dur);
-      this.shakeAmp = Math.max(this.shakeAmp, amp);
+      this.shakeAmp = Math.max(this.shakeAmp, amp * m);
     }
 
     // ================= EVOLUTION MODAL (3-PANEL COMIC) =================
@@ -6619,12 +7108,14 @@
             <div class="evo-card-cost">${ev.cost === 0 ? '無料解放!!' : `コスト: ${ev.cost} pt`} ${canBuy ? '【選択】' : '(ポイント不足)'}</div>
           `;
           card.addEventListener('click', () => {
-            if (!canBuy) return;
+            // カードを作ったあとに状況が変わっていても、その場で買えるか確かめ直す
+            if (this.mode !== 'EVOLUTION_SELECT' || this.shark.unlockedEvolutions.has(ev.id) || this.shark.evolutionPoints < ev.cost) return;
             this.shark.evolutionPoints -= ev.cost;
             this.shark.unlockedEvolutions.add(ev.id);
             if (this.forcedEvoTutorial) {
               this.forcedEvoTutorial = false;
               this.hasCompletedFirstEvo = true;
+              this.saveFlag('gs_first_evo_done');
               document.getElementById('evo-close-btn').style.display = 'inline-block';
             }
             if (ev.effect && ev.effect.maxHpBonus) {
@@ -6661,7 +7152,32 @@
       this.audio.playGolden(true);
     }
 
+    // スコアは腕前が表れるもの（ボス撃破、カウンター、レア、早さ、被ダメージの少なさ）を柱にする
+    computeScore(isClear) {
+      const st = this.stats;
+      const parts = {
+        boss: st.bossesDefeated * 5000,
+        counter: Math.min(st.counters, 60) * 300,
+        golden: st.goldenEaten * 2000,
+        eat: Math.min(st.totalEaten, 2000) * 5,
+        combo: Math.min(st.maxCombo, 200) * 20,
+        time: isClear ? Math.max(0, Math.round((1200 - st.elapsedSec) * 20)) : 0,
+        noDamage: isClear ? Math.max(0, Math.round(6000 - st.damageTaken * 15)) : 0
+      };
+      parts.total = Object.values(parts).reduce((a, b) => a + b, 0);
+      return parts;
+    }
+
+    hideEvolutionUI() {
+      this.forcedEvoTutorial = false;
+      document.getElementById('evo-modal').classList.remove('active');
+      document.getElementById('forced-evo-backdrop').classList.remove('active');
+      document.getElementById('forced-evo-callout').classList.remove('active');
+      document.getElementById('hud-br').classList.remove('forced-evo-highlight');
+    }
+
     showResult(isClear) {
+      this.hideEvolutionUI();
       this.mode = isClear ? 'CLEAR' : 'GAME_OVER';
       this.releaseSticks();
       document.getElementById('res-endless-btn').style.display = isClear ? 'inline-block' : 'none';
@@ -6669,30 +7185,28 @@
       document.getElementById('result-sub').textContent = isClear
         ? '天の川銀河を制覇!! 宇宙は今、サメの海となった!!'
         : '強敵に敗北…！次は進化とカウンター噛みつきでリベンジだ！';
-      // Recalibrated Total Score & Rank for 1.5x Swarm-Eating Pace!
-      const timeBonus = isClear ? Math.max(0, Math.round((900 - this.stats.elapsedSec) * 18)) : 0;
-      const totalScore = Math.round(
-        this.stats.totalEaten * 110 +
-        this.stats.maxCombo * 260 +
-        timeBonus
-      );
+      const sc = this.computeScore(isClear);
+      const totalScore = sc.total;
       let rank = 'TRY AGAIN!';
       if (isClear) {
         if (this.usedDebug) rank = 'DEBUG CLEAR';
         else {
-          rank = totalScore >= 48000 ? 'S+ RANK!!'
-            : (totalScore >= 36000 ? 'S RANK!!'
-            : (totalScore >= 24000 ? 'A RANK!'
-            : (totalScore >= 14000 ? 'B RANK' : 'C RANK')));
+          rank = totalScore >= RANK_TABLE.SPLUS ? 'S+ RANK!!'
+            : (totalScore >= RANK_TABLE.S ? 'S RANK!!'
+            : (totalScore >= RANK_TABLE.A ? 'A RANK!'
+            : (totalScore >= RANK_TABLE.B ? 'B RANK' : 'C RANK')));
         }
       }
+      this.lastScore = sc;
       document.getElementById('res-score').textContent = `${totalScore.toLocaleString()} pt`;
       document.getElementById('result-rank').textContent = rank;
       document.getElementById('res-time').textContent = formatTime(this.stats.elapsedSec);
       document.getElementById('res-len').textContent = formatLength(this.shark.realLengthMeters);
       document.getElementById('res-mass').textContent = formatMass(this.stats.totalMassTons);
       document.getElementById('res-yen').textContent = formatYen(this.stats.totalDamageYen);
+      document.getElementById('res-time-label').textContent = isClear ? 'クリアタイム' : '到達タイム';
       document.getElementById('res-combo').textContent = `${this.stats.totalEaten}体捕食 • 最大${this.stats.maxCombo} COMBO`;
+      document.getElementById('res-skill').textContent = `ボス撃破 ${this.stats.bossesDefeated} • カウンター ${this.stats.counters}回 • レア ${this.stats.goldenEaten}体 • 被ダメージ ${Math.round(this.stats.damageTaken)}`;
       document.getElementById('result-modal').classList.add('active');
     }
 
@@ -6718,7 +7232,8 @@
 
       if (this.mode === 'PLAYING' || this.mode === 'EVOLUTION_SELECT') {
         if (this.interludeTimer > 0) this.interludeTimer = Math.max(0, this.interludeTimer - rawDelta);
-        const isFrozen = (this.interludeTimer > 0 || this.forcedEvoTutorial);
+        // 進化メニューを開いている間は世界の時間を止める（敵の攻撃も止まる）
+        const isFrozen = (this.interludeTimer > 0 || this.forcedEvoTutorial || this.mode === 'EVOLUTION_SELECT');
         const effDelta = isFrozen ? 0 : simDelta;
         this.stats.elapsedSec += effDelta;
 
@@ -6739,6 +7254,10 @@
         // 8. Animator, Particles, Onomatopoeia
         const speedF = 1.0;
         this.sharkRig.update(simDelta, speedF, this.currentTurnInput || 0, false, this.shark.subAction, this.shark.subTimer, this.limited24fps, this.shark.phase);
+        if (this._beamMesh && this._beamMesh.visible) {
+          this._beamTimer -= rawDelta;
+          if (this._beamTimer <= 0) this._beamMesh.visible = false;
+        }
         const jawW = this.sharkRig.getJawWorldPos(new THREE.Vector3());
         this.particles.update(simDelta, jawW, this.shark.internalScale);
         this.onomatopoeia.update(rawDelta);
@@ -6747,6 +7266,7 @@
         this.updateCameraAndEnv(rawDelta);
 
         // 10. Render & HUD
+        this.audio.bossMode = !!this.boss;
         this.renderSceneAndFX(rawDelta);
         this.updateHUD(rawDelta);
       } else if (this.mode === 'CLEAR_CELEBRATION') {
@@ -6806,6 +7326,13 @@
       this.camera.lookAt(0, 0.1, 0);
     }
 
+    // サメの今の全速力（前進いっぱいのとき）
+    sharkTopSpeed() {
+      const s = this.shark;
+      const stageCfg = STAGES[s.stage - 1] || STAGES[0];
+      return stageCfg.speed * (0.72 + s.internalScale * 0.35) * this.getEvoStats().moveSpeedMult * 1.25;
+    }
+
     updateShark(dt) {
       const s = this.shark;
       s.invulnTimer = Math.max(0, s.invulnTimer - dt);
@@ -6855,7 +7382,7 @@
       }
 
       // Desktop mouse steering fallback ONLY when sticks are hidden/inactive and no keys pressed
-      if (!this.touchVec.active && !this.vertStick.active && !this.sticksVisible && turnX === 0 && throttleY === 0 && vertY === 0 && this.mouseNDC.active) {
+      if (!this.touchVec.active && !this.vertStick.active && this.mouseSteer && this.mouseNDC.active) {
         turnX = Math.abs(this.mouseNDC.x) > 0.06 ? Math.sign(this.mouseNDC.x) * Math.pow(Math.abs(this.mouseNDC.x), 1.3) : 0;
         vertY = Math.abs(this.mouseNDC.y) > 0.06 ? Math.sign(this.mouseNDC.y) * Math.pow(Math.abs(this.mouseNDC.y), 1.3) : 0;
         throttleY = 0.65;
@@ -6863,7 +7390,7 @@
 
       this.currentTurnInput = turnX;
 
-      const turnRate = (s.floodTimer > 0 ? 3.5 : 2.85);
+      const turnRate = (s.floodTimer > 0 ? 3.5 : 2.85) * this.getEvoStats().turnRateMult;
       s.yaw -= turnX * turnRate * dt;
 
       // Visual pitch follows vertical stick cleanly (auto-levels when released!)
@@ -6955,15 +7482,15 @@
       const S = this.shark.internalScale;
 
       // Rapid forward-view swarm refill (up to 8/frame so camera view is ALWAYS packed with prey & buildings!)
-      const targetPop = IS_MOBILE ? 92 : 128;
+      const targetPop = Math.round((IS_MOBILE ? 92 : 128) * (this.boss ? 0.6 : 1.0));
       if (this.preys.length < targetPop) {
         for (let k = 0; k < 8 && this.preys.length < targetPop; k++) {
           this.spawnPrey(false, this.preys.length < 48);
         }
       }
-      // Golden rare guarantee every 65s
-      this.goldenGuaranteeTimer += dt;
-      if (this.goldenGuaranteeTimer > 65) {
+      // 金色レアは、場にいないときに30秒ごと出現させる
+      if (!this.preys.some(p => p.alive && p.cfg.isGoldenRare)) this.goldenGuaranteeTimer += dt;
+      if (this.goldenGuaranteeTimer > 30) {
         this.goldenGuaranteeTimer = 0;
         this.spawnPrey(true);
       }
@@ -6997,12 +7524,23 @@
         // Recycle prey & buildings BEHIND the shark immediately so the forward camera view stays 100% packed!
         const fwdX = Math.sin(this.shark.yaw), fwdZ = Math.cos(this.shark.yaw);
         const dotFwd = (p.pos.x - this.shark.pos.x) * fwdX + (p.pos.z - this.shark.pos.z) * fwdZ;
-        const isBehind = !p.cfg.isGoldenRare && dotFwd < -S * 7.5;
+        // 削り途中の獲物と、攻撃態勢に入った敵は、後ろへ回っても消さない
+        const keepBehind = p.cfg.isGoldenRare || p.hp < p.maxHp || p.aiState === 'TELEGRAPH' || p.aiState === 'STRIKE';
+        const isBehind = !keepBehind && dotFwd < -S * 7.5;
         if (dist > S * 36 || isBehind) {
           this.scene.remove(p.mesh);
           disposeObjectGeometries(p.mesh);
           this.preys.splice(i, 1);
           continue;
+        }
+
+        // 遠くの獲物はふち取りを省いて、描画の負担を減らす
+        if (p.outlines && p.outlines.length) {
+          const wantOutline = dist < S * 15;
+          if (wantOutline !== p.outlinesOn) {
+            p.outlinesOn = wantOutline;
+            for (const o of p.outlines) o.visible = wantOutline;
+          }
         }
 
         // Fade Space Fleet hex shield flash smoothly
@@ -7024,13 +7562,23 @@
           if (p.attackCd > 0) p.attackCd -= dt;
 
           if (ai === 'GOLDEN') {
+            // 25秒で逃げ切って消える（終わりのない追いかけっこにしない）
+            p.goldenLife = (p.goldenLife ?? 25) - dt;
+            if (p.goldenLife <= 0) {
+              this.onomatopoeia.spawn('ESCAPED...', p.pos, S * 1.1, 'cyan', true);
+              this.scene.remove(p.mesh);
+              disposeObjectGeometries(p.mesh);
+              this.preys.splice(i, 1);
+              continue;
+            }
             if (dist < S * 24) {
               const flee = p.pos.clone().sub(this.shark.pos);
               if (this.shark.phase <= 2) flee.y = 0;
               if (flee.lengthSq() > 1e-4) flee.normalize();
               const side = new THREE.Vector3(-flee.z, 0, flee.x).multiplyScalar(Math.sin(performance.now() * 0.008) * 0.65);
               flee.add(side).normalize();
-              p.pos.addScaledVector(flee, S * 7.5 * dt);
+              // 逃げる速さは、サメの全速力の88%まで（噛みつき突進を使えば必ず追いつける）
+              p.pos.addScaledVector(flee, Math.min(S * 7.5, this.sharkTopSpeed() * 0.88) * dt);
               p.mesh.lookAt(p.pos.clone().add(flee));
             }
             if (p.cfg.id === 'gold_ufo') {
@@ -7138,6 +7686,7 @@
       if (this.boss) {
         const b = this.boss;
         b.hitCd = Math.max(0, b.hitCd - dt);
+        b.bumpCd = Math.max(0, (b.bumpCd || 0) - dt);
         b.hitFlash = Math.max(0, b.hitFlash - dt);
         b.mesh.position.copy(b.pos);
         const subEl = document.getElementById('boss-subinfo');
@@ -7256,7 +7805,7 @@
                   this.spawnProjectile(b.pos, b.pos.clone().addScaledVector(d, 22), b.cfg.damageToShark || 18);
                 });
               }
-              b.attackTimer = (bossId === 'boss_sun' || bossId === 'boss_milkyway') ? 1.55 : 2.6;
+              b.attackTimer = (bossId === 'boss_sun' || bossId === 'boss_milkyway') ? 2.2 : 3.0;
             }
           } else {
             subEl.textContent = '弾を噛み砕き＆カウンター噛みつきで部位破壊!!';
@@ -7301,7 +7850,8 @@
     updateCameraAndEnv(dt) {
       const s = this.shark;
       const stageCfg = STAGES[s.stage - 1] || STAGES[0];
-      const bossCamMult = this.boss ? (this.boss.cfg.id === 'boss_milkyway' ? 1.85 : 1.35) : 1.0;
+      const bossId = this.boss ? this.boss.cfg.id : null;
+      const bossCamMult = bossId ? (bossId === 'boss_milkyway' ? 1.85 : (bossId === 'boss_robo' ? 1.75 : 1.35)) : 1.0;
       const dist = (stageCfg.camDist * 0.55 + s.internalScale * 5.2) * bossCamMult;
 
       // Portrait-Aware Dynamic FOV (wider view on vertical phone screens so forward hunt is crystal clear!)
@@ -7317,13 +7867,14 @@
       this.camera.updateProjectionMatrix();
 
       // Higher camera + forward-shifted lookAt so shark sits cleanly in lower-center and NEVER blocks forward targets!
-      const backDir = new THREE.Vector3(-Math.sin(s.yaw), 0.50, -Math.cos(s.yaw)).normalize();
+      // 巨大ロボ戦は、全身が見えるように高い位置から見下ろす
+      const backDir = new THREE.Vector3(-Math.sin(s.yaw), bossId === 'boss_robo' ? 0.85 : 0.50, -Math.cos(s.yaw)).normalize();
       const desiredPos = s.pos.clone().addScaledVector(backDir, dist * (isPortrait ? 1.18 : 1.05));
       this.camera.position.lerp(desiredPos, Math.min(1, dt * 7));
 
       const lookAt = s.pos.clone().add(new THREE.Vector3(
         Math.sin(s.yaw) * s.displayScale * 4.2,
-        s.displayScale * 1.15,
+        s.displayScale * (bossId === 'boss_robo' ? 3.2 : 1.15),
         Math.cos(s.yaw) * s.displayScale * 4.2
       ));
       this.cameraTarget.lerp(lookAt, Math.min(1, dt * 10));
@@ -7406,7 +7957,9 @@
 
       // 2D Comic Overlay FX (Speedlines & Impact Frames)
       const ctx = this.fxCtx;
-      const w = this.fxCanvas.width, h = this.fxCanvas.height;
+      const dpr = this.fxDpr || 1;
+      const w = this.fxCanvas.width / dpr, h = this.fxCanvas.height / dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
       // Phase 1 Underwater Blue Vignette & Rising Bubbles vs Phase 2 Land Dust vs Phase 3 Sky Speed Wind
@@ -7446,6 +7999,10 @@
 
         // Prey indicators (damaged HP bar, Golden target, and at most 1 closest larger target hint)
         let dangerShown = 0;
+        let edibleShown = 0;
+        const evoI = this.getEvoStats();
+        const touchLim = TOUCH_EAT_RATIO + evoI.instantEatRatioBonus * 0.5;
+        const biteLim = BITE_EAT_RATIO + evoI.instantEatRatioBonus;
         for (let i = 0; i < this.preys.length; i++) {
           const p = this.preys[i];
           if (!p.alive) continue;
@@ -7455,8 +8012,11 @@
           const showHp = !showAttack && p.hp < p.maxHp && dist < S * 28;
           const showDanger = !showAttack && !showHp && dangerShown < 1 && ratio > 0.92 && dist < S * 10.5;
           const showGold = p.cfg.isGoldenRare;
-          if (!showAttack && !showHp && !showDanger && !showGold) continue;
+          // 近くの獲物に、食べ方の目印を付ける（黄＝噛めば丸呑み、赤＝大きいので噛んで削る）
+          const showEdible = !showAttack && !showHp && !showDanger && !showGold && edibleShown < 8 && ratio > touchLim && dist < S * 8;
+          if (!showAttack && !showHp && !showDanger && !showGold && !showEdible) continue;
           if (showDanger) dangerShown++;
+          if (showEdible) edibleShown++;
 
           proj.copy(p.pos);
           proj.y += p.internalRadius * 1.2;
@@ -7468,7 +8028,7 @@
           if (inFront && sx > 20 && sx < w - 20 && sy > 36 && sy < h - 36) {
             if (showAttack) {
               const isCounter = (p.aiState === 'TELEGRAPH' && p.telegraphTimer <= 0.45) || (p.aiState === 'STRIKE' && p.strikeTimer >= 0.38);
-              const blink = Math.floor(performance.now() / 100) % 2 === 0;
+              const blink = !this.reducedFlash && Math.floor(performance.now() / 100) % 2 === 0;
               const txt = isCounter ? '⚡ COUNTER! 噛め!!' : '⚡ ATTACK!!';
               ctx.font = '900 italic 15px Impact, sans-serif';
               ctx.strokeStyle = '#050508'; ctx.lineWidth = 5;
@@ -7490,6 +8050,13 @@
               ctx.strokeStyle = '#050508'; ctx.lineWidth = 4;
               ctx.strokeText('噛んで削れ!', sx, sy - 8);
               ctx.fillStyle = '#FF8A00'; ctx.fillText('噛んで削れ!', sx, sy - 8);
+            } else if (showEdible) {
+              const biteable = ratio <= biteLim || p.cfg.gimmick !== 'NONE';
+              ctx.fillStyle = biteable ? '#FFE600' : '#FF3B30';
+              ctx.strokeStyle = '#050508'; ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.moveTo(sx - 6, sy - 14); ctx.lineTo(sx + 6, sy - 14); ctx.lineTo(sx, sy - 5); ctx.closePath();
+              ctx.fill(); ctx.stroke();
             }
           } else if (showGold) {
             const ax = Math.max(46, Math.min(w - 46, inFront ? sx : w - sx));
@@ -7517,7 +8084,7 @@
         }
 
         // Subtle Mouse Aim Reticle
-        if (this.mouseNDC.active && !IS_MOBILE) {
+        if (this.mouseSteer && this.mouseNDC.active) {
           const rx = (this.mouseNDC.x * 0.5 + 0.5) * w;
           const ry = (-this.mouseNDC.y * 0.5 + 0.5) * h;
           ctx.strokeStyle = this.shark.biteActiveTimer > 0 ? '#FFE600' : 'rgba(0,240,255,0.65)';
@@ -7562,6 +8129,16 @@
 
     updateHUD(dt) {
       const s = this.shark;
+      this.updateTutorial(dt);
+      // 狭い画面では、ボスの体力バーを左上の表示の下へずらして重ならないようにする
+      const bossHud = document.getElementById('boss-hud');
+      if (this.boss) {
+        const tl = document.getElementById('hud-tl').getBoundingClientRect();
+        const hudTop = document.getElementById('hud').getBoundingClientRect().top;
+        const bw = Math.min(360, window.innerWidth * 0.84);
+        const overlaps = (window.innerWidth - bw) / 2 < tl.right + 8;
+        bossHud.style.top = overlaps ? `${Math.round(tl.bottom - hudTop + 10)}px` : '';
+      }
       document.getElementById('hud-length').textContent = formatLength(s.realLengthMeters);
       document.getElementById('hud-phase').textContent = `${PHASE_INFO[s.phase].name} • STAGE ${s.stage}/15`;
       const vLbl = document.querySelector('#vert-stick-zone .stick-label');
@@ -7572,6 +8149,16 @@
       const logNum = Math.log(Math.max(1.0, s.realLengthMeters / curSt.minLen));
       const pct = Math.max(0, Math.min(100, (logNum / logDen) * 100));
       document.getElementById('hud-growth-fill').style.width = `${pct}%`;
+      // ボスが出る位置を、ゲージの上に印で示す
+      const bt = BOSS_TRIGGER[s.phase];
+      const mark = document.getElementById('hud-boss-mark');
+      if (bt && !this.boss && !this.defeatedBosses.has(bt.id) && bt.len >= curSt.minLen && bt.len < curSt.maxLen) {
+        const mp = Math.log(bt.len / curSt.minLen) / logDen * 100;
+        mark.style.left = `${Math.max(0, Math.min(98, mp))}%`;
+        mark.style.display = 'block';
+      } else {
+        mark.style.display = 'none';
+      }
 
       document.getElementById('hud-wanted').textContent = this.stats.wantedLevel > 0 ? '★'.repeat(this.stats.wantedLevel) : '';
       document.getElementById('hud-damage').textContent = this.stats.totalDamageYen > 0 ? `被害 ${formatYen(this.stats.totalDamageYen)}` : '';
@@ -7600,7 +8187,8 @@
       const evoBtn = document.getElementById('evo-ready-btn');
       evoBtn.classList.toggle('locked', !canBuyAny);
       evoBtn.classList.toggle('evo-active', canBuyAny);
-      evoBtn.textContent = canBuyAny ? `⚡ 進化 (${s.evolutionPoints}pt)` : (nextEvos.length === 0 ? '⚡ 進化MAX' : `⚡ 進化 (${s.evolutionPoints}pt)`);
+      const onlyFree = canBuyAny && s.evolutionPoints <= 0;
+      evoBtn.textContent = onlyFree ? '⚡ 隠し形態 解放!!' : (canBuyAny ? `⚡ 進化 (${s.evolutionPoints}pt)` : (nextEvos.length === 0 ? '⚡ 進化MAX' : `⚡ 進化 (${s.evolutionPoints}pt)`));
 
       // Trigger Forced 1st Evolution Tutorial the first time player earns Evolution PT!
       if (canBuyAny && !this.hasCompletedFirstEvo && !this.forcedEvoTutorial && this.mode === 'PLAYING' && this.interludeTimer <= 0) {
@@ -7630,13 +8218,21 @@
       this.renderer.setSize(w, h, false);
       this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
-      this.fxCanvas.width = w;
-      this.fxCanvas.height = h;
+      // 高精細な画面でもぼやけないよう、画面の細かさに合わせて描く
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      this.fxDpr = dpr;
+      this.fxCanvas.width = Math.round(w * dpr);
+      this.fxCanvas.height = Math.round(h * dpr);
     }
   }
 
   window.addEventListener('load', () => {
-    window.__galaxyShark = new GalaxySharkGame();
+    try {
+      window.__galaxyShark = new GalaxySharkGame();
+    } catch (err) {
+      console.error(err);
+      window.__showFatal('ゲームの準備中に問題が起きたため、始められませんでした。');
+    }
   });
 })();
 </script>
