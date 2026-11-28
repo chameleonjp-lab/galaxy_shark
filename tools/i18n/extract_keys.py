@@ -49,18 +49,21 @@ class P(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.stack = []; self.capture = None; self.buf = ''; self.depth = 0
+    def add_attributes(self, attrs):
+        for name, value in attrs:
+            if name in ('title', 'aria-label', 'placeholder') and value:
+                add(value)
     def handle_starttag(self, tag, attrs):
-        a = dict(attrs)
-        for at in ('title', 'aria-label'):
-            if a.get(at): add(a[at])
+        self.add_attributes(attrs)
         if self.capture is not None:
             self.buf += self.get_starttag_text(); 
             if tag not in ('br', 'img', 'input'): self.depth += 1
             return
-        if 'data-i18n-html' in a:
+        if 'data-i18n-html' in dict(attrs):
             self.capture = tag; self.buf = ''; self.depth = 1
         self.stack.append(tag)
     def handle_startendtag(self, tag, attrs):
+        self.add_attributes(attrs)
         if self.capture is not None: self.buf += self.get_starttag_text()
     def handle_endtag(self, tag):
         if self.capture is not None:
