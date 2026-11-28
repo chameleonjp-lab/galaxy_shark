@@ -114,7 +114,7 @@
       }
     };
     // 日本語以外は、その言語の翻訳ファイルだけを読み込む
-    if (lang !== 'ja') document.write('<script src="i18n/' + lang + '.js?v=20261128-01"><\/script>');
+    if (lang !== 'ja') document.write('<script src="i18n/' + lang + '.js?v=20261128-02"><\/script>');
   })();
 </script>
 <script src="vendor/three.min.js"></script>
@@ -1056,6 +1056,10 @@
   .result-ranking h2 { margin: 0; font-size: 16px; }
   .result-ranking p { margin: 4px 0; }
   .result-ranking [hidden] { display: none; }
+  .result-score-submission { font: 700 12px/1.4 sans-serif; }
+  .result-score-submission p { margin: 4px 0 0; }
+  .result-score-submission button { margin-top: 6px; }
+  .result-score-submission [hidden] { display: none; }
   #ranking-rows {
     max-height: 9rem; overflow-y: auto; touch-action: pan-y; overscroll-behavior-y: contain;
     margin: 4px 0; padding: 0; list-style: none; text-align: left;
@@ -1633,7 +1637,14 @@
       <div id="result-sub" style="font-weight:900;font-size:16px;">天の川銀河を制覇!! 宇宙はサメの海となった!!</div>
       <div id="result-rank" class="rank-stamp"></div>
       <div class="result-stats-grid">
-        <div class="stat-cell" style="grid-column:span 2;background:linear-gradient(90deg,#FFE600,#FF9E00);"><div class="stat-cell-label">総合スコア</div><div id="res-score" class="stat-cell-val" style="font-size:clamp(24px,4.5vw,34px);"></div></div>
+        <div class="stat-cell" style="grid-column:span 2;background:linear-gradient(90deg,#FFE600,#FF9E00);">
+          <div class="stat-cell-label">総合スコア</div>
+          <div id="res-score" class="stat-cell-val" style="font-size:clamp(24px,4.5vw,34px);"></div>
+          <div class="result-score-submission">
+            <p id="ranking-submit-status" role="status" hidden></p>
+            <button id="ranking-submit-retry" class="comic-mini-btn" hidden>記録を再送する</button>
+          </div>
+        </div>
         <div class="stat-cell"><div id="res-time-label" class="stat-cell-label">クリアタイム</div><div id="res-time" class="stat-cell-val">00:00</div></div>
         <div class="stat-cell"><div class="stat-cell-label">最終体長</div><div id="res-len" class="stat-cell-val"></div></div>
         <div class="stat-cell"><div class="stat-cell-label">総捕食質量</div><div id="res-mass" class="stat-cell-val">0 t</div></div>
@@ -1643,8 +1654,6 @@
       </div>
       <section class="result-ranking" aria-labelledby="ranking-heading">
         <h2 id="ranking-heading">ランキング上位30人</h2>
-        <p id="ranking-submit-status" role="status" hidden></p>
-        <button id="ranking-submit-retry" class="comic-mini-btn" hidden>記録を再送する</button>
         <p id="ranking-board-status" role="status"></p>
         <button id="ranking-board-retry" class="comic-mini-btn" hidden>ランキングを再読み込み</button>
         <ol id="ranking-rows" tabindex="0" aria-labelledby="ranking-heading" hidden></ol>
@@ -7757,12 +7766,16 @@
       const run = this.rankingRun;
       this.rankingRun = null;
       const result = this.rankingResult = {};
-      document.getElementById('ranking-submit-status').hidden = true;
+      const submitStatus = document.getElementById('ranking-submit-status');
+      submitStatus.hidden = true;
       document.getElementById('ranking-submit-retry').hidden = true;
       void this.loadRanking(result);
       if (run && !this.usedDebug) {
         result.send = window.GalaxyRanking.finish(run, isClear ? 'clear' : 'game_over', this.shark.phase, totalScore);
         void this.submitRanking(result);
+      } else if (!IS_DEBUG && !this.usedDebug && !document.getElementById('player-name').value) {
+        submitStatus.textContent = tx('名前が空欄のため、ランキングには登録されません。');
+        submitStatus.hidden = false;
       }
     }
 
