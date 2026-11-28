@@ -66,9 +66,8 @@
     if (!canSubmit) return null;
     counter ??= import('../chameleonjp_lab/play-start.js');
     void counter.then(({ recordPlayStart }) => recordPlayStart(slug)).catch(() => { counter = null; });
-    if (!name) return null;
     const run = { id: crypto.randomUUID(), name, version: clientVersion, createdAt: Date.now() };
-    run.start = register(run).catch(() => null);
+    if (name) run.start = register(run).catch(() => null);
     return run;
   }
 
