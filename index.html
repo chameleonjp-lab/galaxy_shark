@@ -76,16 +76,17 @@
   }
 
   /* Variant Cover Skin Filters (Applied to BOTH Title Screen AND 3D WebGL Canvas!) */
-  body.skin-GOLDEN_AGE #gl-canvas, body.skin-GOLDEN_AGE #title-screen {
+  /* スキンの色の効果は3D画面だけにかける（ロゴやボタン、表示の文字は元の色のまま） */
+  body.skin-GOLDEN_AGE #gl-canvas {
     filter: sepia(0.45) contrast(1.18) saturate(0.92);
   }
-  body.skin-NOIR #gl-canvas, body.skin-NOIR #title-screen {
+  body.skin-NOIR #gl-canvas {
     filter: grayscale(1) contrast(1.45) brightness(0.95);
   }
-  body.skin-NEON_CYBER #gl-canvas, body.skin-NEON_CYBER #title-screen {
+  body.skin-NEON_CYBER #gl-canvas {
     filter: contrast(1.28) saturate(1.75) hue-rotate(18deg);
   }
-  body.skin-SKETCHBOOK #gl-canvas, body.skin-SKETCHBOOK #title-screen {
+  body.skin-SKETCHBOOK #gl-canvas {
     filter: grayscale(0.88) contrast(1.55) brightness(1.18);
   }
 
@@ -1262,7 +1263,7 @@
     <div class="cover-top-row">
       <div class="issue-stamp">ISSUE #1 • 0.5m → 100,000 LY</div>
       <div style="display:flex;gap:6px;">
-        <button id="title-skin-btn" class="comic-mini-btn">SKIN: STANDARD</button>
+        <button id="title-skin-btn" class="comic-mini-btn">スキン: 標準</button>
         <button id="title-mute-btn" class="comic-mini-btn">音: ON</button>
         <button id="title-gfx-btn" class="comic-mini-btn" title="軽量：描画の負担を減らす（細かな部品の動きとふち取りを省く）">描画: 標準</button>
         <button id="title-fullscreen-btn" class="comic-mini-btn fs-btn" title="全画面 (F)">⛶ 全画面</button>
@@ -1343,7 +1344,7 @@
         <button id="btn-menu" class="comic-mini-btn">⚙ MENU</button>
       </div>
       <div id="menu-drawer">
-        <button id="btn-skin" class="comic-mini-btn">SKIN: STD</button>
+        <button id="btn-skin" class="comic-mini-btn">スキン: 標準</button>
         <button id="btn-stick" class="comic-mini-btn active-toggle">STICK: ON</button>
         <button id="btn-24fps" class="comic-mini-btn">24FPS: OFF</button>
         <button id="btn-flash" class="comic-mini-btn">点滅軽減: OFF</button>
@@ -1717,6 +1718,8 @@
   // ランクの基準点（自動プレイのボットの結果をもとに決めた。ボットの成績が S と S+ の間に入る）
   const RANK_TABLE = { SPLUS: 70000, S: 55000, A: 42000, B: 30000 };
 
+  // スキンの画面表示名（ボタンにはこの名前を出す）
+  const SKIN_LABELS = { STANDARD: '標準', GOLDEN_AGE: '黄金時代', NOIR: 'ノワール', NEON_CYBER: 'ネオン', SKETCHBOOK: 'スケッチ' };
   const COMIC_SKINS = ['STANDARD', 'GOLDEN_AGE', 'NOIR', 'NEON_CYBER', 'SKETCHBOOK'];
 
   // =========================================================================
@@ -5819,8 +5822,9 @@
         this.skinIdx = (this.skinIdx + 1) % COMIC_SKINS.length;
         const s = COMIC_SKINS[this.skinIdx];
         this.shaderMgr.setSkin(s);
-        document.getElementById('btn-skin').textContent = 'SKIN: ' + s.slice(0, 4);
-        document.getElementById('title-skin-btn').textContent = 'SKIN: ' + s;
+        const skinLabel = 'スキン: ' + (SKIN_LABELS[s] || s);
+        document.getElementById('btn-skin').textContent = skinLabel;
+        document.getElementById('title-skin-btn').textContent = skinLabel;
         this.saveSettings();
       };
       document.getElementById('btn-skin').addEventListener('click', cycleSkin);
@@ -8213,6 +8217,27 @@
             ctx.strokeText('☠ BOSS ☠', 0, 0);
             ctx.fillStyle = '#FF2442'; ctx.fillText('☠ BOSS ☠', 0, 0);
             ctx.restore();
+          }
+        }
+
+        // 色の効果がかかるスキンでは、敵の弾の位置に赤い輪を重ねて描く（2Dの層には色の効果がかからない）
+        if (this.skinIdx > 0 && this.projectiles.length) {
+          const edge = new THREE.Vector3();
+          const camUp = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
+          ctx.lineWidth = 3 * uS;
+          for (const pr of this.projectiles) {
+            if (pr.fromShark) continue;
+            proj.copy(pr.pos).project(this.camera);
+            if (proj.z >= 1) continue;
+            const px = (proj.x * 0.5 + 0.5) * w, py = (-proj.y * 0.5 + 0.5) * h;
+            if (px < -40 || px > w + 40 || py < -40 || py > h + 40) continue;
+            edge.copy(pr.pos).addScaledVector(camUp, pr.mesh.scale.x).project(this.camera);
+            const r = Math.max(7 * uS, Math.abs((-edge.y * 0.5 + 0.5) * h - py) * 1.25);
+            ctx.beginPath(); ctx.arc(px, py, r + 2 * uS, 0, Math.PI * 2);
+            ctx.strokeStyle = '#050508'; ctx.lineWidth = 6 * uS; ctx.stroke();
+            ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2);
+            ctx.strokeStyle = '#FF1744'; ctx.lineWidth = 3 * uS; ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 23, 68, 0.45)'; ctx.fill();
           }
         }
 
