@@ -1107,6 +1107,21 @@
   @media (max-height: 480px) { #prey-card { bottom: 64px; width: min(360px, 46vw); padding: 4px 10px; } #prey-card-flavor { font-size: 11px; } }
   @media (max-width: 720px) and (orientation: portrait) { #prey-card { bottom: auto; top: 26%; width: 78vw; } }
 
+  /* 全画面ボタンは、PCで全画面に対応しているブラウザでだけ出す */
+  .fs-btn { display: none; }
+  body.pc-ui.fs-ok .fs-btn { display: inline-block; }
+
+  /* PC：大きな画面に合わせて、表示や文字を拡大する（倍率 --ui は画面の大きさから計算） */
+  body.pc-ui .cover-top-row, body.pc-ui .cover-title-block, body.pc-ui .cover-center-actions,
+  body.pc-ui .cover-bottom-row, body.pc-ui .credit-link,
+  body.pc-ui #news-ticker-wrap, body.pc-ui #hud-tl, body.pc-ui #hud-tr, body.pc-ui #hud-bl, body.pc-ui #hud-br,
+  body.pc-ui #boss-hud, body.pc-ui #evo-top-notice, body.pc-ui #tap-bite-guide, body.pc-ui #gauge-tut-callout,
+  body.pc-ui #forced-evo-callout, body.pc-ui #prey-card, body.pc-ui #issue-caption, body.pc-ui #clear-banner,
+  body.pc-ui .story-panel, body.pc-ui #pause-overlay > *, body.pc-ui #cutin-main, body.pc-ui #cutin-sub,
+  body.pc-ui #evo-modal-inner, body.pc-ui #result-box {
+    zoom: var(--ui, 1);
+  }
+
   .credit-link { position: absolute; right: 18px; bottom: 6px; white-space: nowrap; font-family: sans-serif; font-size: 10px; color: #cfefff; text-decoration: underline; }
 
   #fatal-screen {
@@ -1176,6 +1191,7 @@
         <button id="title-skin-btn" class="comic-mini-btn">SKIN: STANDARD</button>
         <button id="title-mute-btn" class="comic-mini-btn">音: ON</button>
         <button id="title-gfx-btn" class="comic-mini-btn" title="軽量：描画の負担を減らす（細かな部品の動きとふち取りを省く）">描画: 標準</button>
+        <button id="title-fullscreen-btn" class="comic-mini-btn fs-btn" title="全画面 (F)">⛶ 全画面</button>
       </div>
     </div>
 
@@ -1248,6 +1264,7 @@
       <div id="top-btn-row">
         <button id="btn-pause" class="comic-mini-btn" title="一時停止 (ESC)">⏸</button>
         <button id="btn-mute" class="comic-mini-btn">🔊</button>
+        <button id="btn-fullscreen" class="comic-mini-btn fs-btn" title="全画面 (F)">⛶ 全画面</button>
         <button id="btn-menu" class="comic-mini-btn">⚙ MENU</button>
       </div>
       <div id="menu-drawer">
@@ -1395,7 +1412,7 @@
   const TOUCH_UI = IS_TOUCH && !(window.matchMedia && window.matchMedia('(pointer: fine)').matches);
   const CONTROLS_HTML = TOUCH_UI
     ? '左スティック：前進・後退・向きを変える<br>右の縦スティック：上下（陸ではジャンプ）<br>画面タップ：噛みつき突進 ・ 右下の ⚡進化：サメを強化'
-    : 'W / S：前進・後退　A / D・← →：向きを変える<br>↑ / ↓：上下（陸ではジャンプ）　スペース・クリック：噛みつき突進<br>V：進化　Esc：一時停止　右ボタンを押しながらマウス：舵を取る';
+    : 'W / S：前進・後退　A / D・← →：向きを変える<br>↑ / ↓：上下（陸ではジャンプ）　スペース・クリック：噛みつき突進<br>V：進化　Esc：一時停止　F：全画面　右ボタンを押しながらマウス：舵を取る';
 
   // 大きさの単位の切り替え。どの段も10倍前後に収めて、見た目の成長が途中で止まらないようにする
   const UNIT_METERS = [0.5, 5.0, 50.0, 500.0, 8000.0, 100000.0, 1500000.0, 15000000.0, 150000000.0, 9.461e15];
@@ -2063,7 +2080,9 @@
     }
 
     setSkin(skinId) {
-      document.body.className = `skin-${skinId}`;
+      // スキンのクラスだけを入れ替える（PC表示や点滅軽減などのクラスは残す）
+      for (const c of [...document.body.classList]) if (c.startsWith('skin-')) document.body.classList.remove(c);
+      document.body.classList.add(`skin-${skinId}`);
       if (skinId === 'NEON_CYBER') {
         this.sharedUniforms.uOutlineColor.value.setHex(0x00f0ff);
       } else if (skinId === 'SKETCHBOOK') {
@@ -5645,6 +5664,38 @@
         }
       }, { capture: true, passive: false });
 
+      // 全画面（PCだけ）。ボタンか F キーで切り替える
+      const fsEl = document.documentElement;
+      const fsEnabled = !TOUCH_UI && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+      document.body.classList.toggle('fs-ok', fsEnabled);
+      const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+      this.toggleFullscreen = () => {
+        if (!fsEnabled) return;
+        try {
+          if (isFs()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+          else {
+            const req = fsEl.requestFullscreen || fsEl.webkitRequestFullscreen;
+            const r = req.call(fsEl, { navigationUI: 'hide' });
+            if (r && r.catch) r.catch(() => {});
+          }
+        } catch {}
+      };
+      const syncFsLabels = () => {
+        for (const id of ['btn-fullscreen', 'title-fullscreen-btn']) {
+          const b = document.getElementById(id);
+          b.textContent = isFs() ? '⛶ 全画面を終了' : '⛶ 全画面';
+          b.classList.toggle('active-toggle', isFs());
+        }
+        this.onResize();
+      };
+      document.addEventListener('fullscreenchange', syncFsLabels);
+      document.addEventListener('webkitfullscreenchange', syncFsLabels);
+      document.getElementById('btn-fullscreen').addEventListener('click', (e) => { e.stopPropagation(); this.toggleFullscreen(); });
+      document.getElementById('title-fullscreen-btn').addEventListener('click', () => this.toggleFullscreen());
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) this.toggleFullscreen();
+      });
+
       document.querySelector('.controls-tip').innerHTML = CONTROLS_HTML;
       document.getElementById('pause-controls').innerHTML = CONTROLS_HTML;
       document.getElementById('tap-bite-guide').innerHTML = TOUCH_UI ? '👆 画面タップで<br>サメが噛みつく!!' : 'スペースキー か クリックで<br>サメが噛みつく!!';
@@ -6053,7 +6104,7 @@
       } else if (t.step === 'WAIT_GAUGE' && t.timer <= 0) {
         const callout = document.getElementById('gauge-tut-callout');
         const bar = document.getElementById('hud-growth-bar-wrap').getBoundingClientRect();
-        callout.style.top = `${Math.round(bar.bottom + 12)}px`;
+        callout.style.top = `${Math.round((bar.bottom + 12) / (this.uiScale || 1))}px`;
         callout.style.display = 'block';
         document.getElementById('hud-tl').classList.add('tut-highlight');
         this.tutorial = { step: 'GAUGE', timer: 5.5 };
@@ -8000,6 +8051,7 @@
         // Prey indicators (damaged HP bar, Golden target, and at most 1 closest larger target hint)
         let dangerShown = 0;
         let edibleShown = 0;
+        const uS = this.uiScale || 1; // PCでは目印や文字も画面の大きさに合わせて拡大する
         const evoI = this.getEvoStats();
         const touchLim = TOUCH_EAT_RATIO + evoI.instantEatRatioBonus * 0.5;
         const biteLim = BITE_EAT_RATIO + evoI.instantEatRatioBonus;
@@ -8026,6 +8078,7 @@
           const sy = (-proj.y * 0.5 + 0.5) * h;
 
           if (inFront && sx > 20 && sx < w - 20 && sy > 36 && sy < h - 36) {
+            ctx.save(); ctx.translate(sx, sy); ctx.scale(uS, uS); ctx.translate(-sx, -sy);
             if (showAttack) {
               const isCounter = (p.aiState === 'TELEGRAPH' && p.telegraphTimer <= 0.45) || (p.aiState === 'STRIKE' && p.strikeTimer >= 0.38);
               const blink = !this.reducedFlash && Math.floor(performance.now() / 100) % 2 === 0;
@@ -8058,12 +8111,15 @@
               ctx.moveTo(sx - 6, sy - 14); ctx.lineTo(sx + 6, sy - 14); ctx.lineTo(sx, sy - 5); ctx.closePath();
               ctx.fill(); ctx.stroke();
             }
+            ctx.restore();
           } else if (showGold) {
-            const ax = Math.max(46, Math.min(w - 46, inFront ? sx : w - sx));
-            const ay = Math.max(54, Math.min(h - 54, inFront ? sy : h - sy));
+            const ax = Math.max(46 * uS, Math.min(w - 46 * uS, inFront ? sx : w - sx));
+            const ay = Math.max(54 * uS, Math.min(h - 54 * uS, inFront ? sy : h - sy));
+            ctx.save(); ctx.translate(ax, ay); ctx.scale(uS, uS);
             ctx.strokeStyle = '#050508'; ctx.lineWidth = 4;
-            ctx.strokeText('★ GOLDEN', ax, ay);
-            ctx.fillStyle = '#FFD700'; ctx.fillText('★ GOLDEN', ax, ay);
+            ctx.strokeText('★ GOLDEN', 0, 0);
+            ctx.fillStyle = '#FFD700'; ctx.fillText('★ GOLDEN', 0, 0);
+            ctx.restore();
           }
         }
 
@@ -8074,12 +8130,14 @@
           const sx = (proj.x * 0.5 + 0.5) * w;
           const sy = (-proj.y * 0.5 + 0.5) * h;
           if (!inFront || sx < 24 || sx > w - 24 || sy < 40 || sy > h - 40) {
-            const ax = Math.max(58, Math.min(w - 58, inFront ? sx : w - sx));
-            const ay = Math.max(64, Math.min(h - 64, inFront ? sy : h - sy));
+            const ax = Math.max(58 * uS, Math.min(w - 58 * uS, inFront ? sx : w - sx));
+            const ay = Math.max(64 * uS, Math.min(h - 64 * uS, inFront ? sy : h - sy));
+            ctx.save(); ctx.translate(ax, ay); ctx.scale(uS, uS);
             ctx.font = '900 italic 16px Impact, sans-serif';
             ctx.strokeStyle = '#050508'; ctx.lineWidth = 5;
-            ctx.strokeText('☠ BOSS ☠', ax, ay);
-            ctx.fillStyle = '#FF2442'; ctx.fillText('☠ BOSS ☠', ax, ay);
+            ctx.strokeText('☠ BOSS ☠', 0, 0);
+            ctx.fillStyle = '#FF2442'; ctx.fillText('☠ BOSS ☠', 0, 0);
+            ctx.restore();
           }
         }
 
@@ -8135,9 +8193,10 @@
       if (this.boss) {
         const tl = document.getElementById('hud-tl').getBoundingClientRect();
         const hudTop = document.getElementById('hud').getBoundingClientRect().top;
-        const bw = Math.min(360, window.innerWidth * 0.84);
+        const u = this.uiScale || 1;
+        const bw = Math.min(360, window.innerWidth * 0.84) * u;
         const overlaps = (window.innerWidth - bw) / 2 < tl.right + 8;
-        bossHud.style.top = overlaps ? `${Math.round(tl.bottom - hudTop + 10)}px` : '';
+        bossHud.style.top = overlaps ? `${Math.round((tl.bottom - hudTop + 10) / u)}px` : '';
       }
       document.getElementById('hud-length').textContent = formatLength(s.realLengthMeters);
       document.getElementById('hud-phase').textContent = `${PHASE_INFO[s.phase].name} • STAGE ${s.stage}/15`;
@@ -8223,6 +8282,10 @@
       this.fxDpr = dpr;
       this.fxCanvas.width = Math.round(w * dpr);
       this.fxCanvas.height = Math.round(h * dpr);
+      // PCでは、画面の大きさ（1280×760を基準）に合わせて表示を1〜2倍に拡大する。スマホは今のまま
+      this.uiScale = TOUCH_UI ? 1 : Math.max(1, Math.min(2, Math.min(w / 1280, h / 760)));
+      document.body.classList.toggle('pc-ui', !TOUCH_UI);
+      document.documentElement.style.setProperty('--ui', this.uiScale.toFixed(3));
     }
   }
 
