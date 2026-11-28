@@ -6,9 +6,16 @@
 <title>ギャラクシーシャーク — アメコミ調3Dサメ巨大化捕食アクション</title>
 <meta name="description" content="小さなサメを操作して獲物を食べ、海から都市、空、宇宙、そして銀河まで巨大化していく、アメコミ調の3D捕食アクションゲーム。ブラウザですぐ遊べます。" />
 <meta property="og:type" content="website" />
+<meta property="og:site_name" content="ギャラクシーシャーク" />
+<meta property="og:url" content="https://chameleonjp-lab.github.io/galaxy_shark/" />
+<meta property="og:image" content="https://chameleonjp-lab.github.io/galaxy_shark/ogp.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="大口を開けたサメと「GALAXY SHARK」のロゴ。背景は海・都市・宇宙のゲーム画面" />
 <meta property="og:title" content="GALAXY SHARK — 食って、伸びて、銀河まで丸呑み!!" />
 <meta property="og:description" content="0.5mのサメが、海・都市・空・宇宙を食べ進み、10万光年の銀河サメへ。アメコミ調の3D捕食アクション。" />
-<meta name="twitter:card" content="summary" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://chameleonjp-lab.github.io/galaxy_shark/ogp.jpg" />
 <meta name="theme-color" content="#02182b" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23FFE600'/%3E%3Cpath d='M8 40 Q30 14 56 30 L46 34 L56 44 Q30 52 8 40 Z' fill='%231b4d89' stroke='%23050508' stroke-width='3'/%3E%3Cpath d='M30 22 L36 8 L40 24 Z' fill='%231b4d89' stroke='%23050508' stroke-width='3'/%3E%3C/svg%3E" />
 <script>
@@ -1013,6 +1020,17 @@
   @keyframes logoIn { from { transform: skewX(-8deg) rotate(-4deg) scale(0.3); opacity: 0; } }
   body.reduced-flash .cover-burst, body.reduced-flash .cover-logo, body.reduced-flash .cover-tagline span { animation: none; }
 
+  /* Xへのシェアボタン（Xの配色にそろえて黒地に白） */
+  .share-x-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    font-family: var(--comic-font); font-weight: 900; font-size: 15px;
+    color: #FFFFFF; background: #050508;
+    border: 3px solid #FFFFFF; box-shadow: 4px 4px 0 #FF1744;
+    padding: 7px 18px; transform: skewX(-8deg); cursor: pointer;
+  }
+  .share-x-btn .x-logo { width: 1.05em; height: 1.05em; fill: currentColor; flex: none; }
+  .share-x-btn:active { transform: skewX(-8deg) translate(2px, 2px); box-shadow: 2px 2px 0 #FF1744; }
+  .result-actions .share-x-btn { border-color: #050508; box-shadow: 4px 4px 0 #FF1744; }
   .cover-center-actions {
     display: flex;
     flex-direction: column;
@@ -1426,6 +1444,7 @@
 
     <div class="cover-center-actions">
       <button id="play-btn">スタート!!</button>
+      <button id="share-x-btn" class="share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></button>
 
     </div>
 
@@ -1578,6 +1597,7 @@
         <button id="res-retry-btn" class="act-btn">もう一度遊ぶ</button>
         <button id="res-endless-btn" class="act-btn cyan">銀河エンドレス遊泳</button>
         <button id="res-title-btn" class="act-btn red">タイトルへ</button>
+        <button id="res-share-btn" class="act-btn share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></button>
       </div>
     </div>
   </div>
@@ -1894,6 +1914,7 @@
   const LANG = (window.GS_I18N && window.GS_I18N.lang) || 'ja';
   const LOCALE = (window.GS_I18N && window.GS_I18N.locale) || 'ja-JP';
   const IS_JA = LANG === 'ja';
+  const SHARE_URL = 'https://chameleonjp-lab.github.io/galaxy_shark/';
   const JP_UNITS = [[1e28, '穣'], [1e24, '秭'], [1e20, '垓'], [1e16, '京'], [1e12, '兆'], [1e8, '億'], [1e4, '万']];
   function formatJpUnit(v, suffix, digits = 2) {
     for (const [base, name] of JP_UNITS) {
@@ -6071,6 +6092,22 @@
         forcedBackdrop.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); });
       });
 
+      // Xへのシェア。共有するアドレスは公開ページに固定し、?lang= や ?debug=1 を含めない
+      const shareToX = (text) => {
+        const q = new URLSearchParams({ text, url: SHARE_URL, hashtags: IS_JA ? 'ギャラクシーシャーク' : 'GalaxyShark' });
+        window.open('https://twitter.com/intent/tweet?' + q.toString(), '_blank', 'noopener');
+      };
+      document.getElementById('share-x-btn').addEventListener('click', () => {
+        shareToX(tx('食って、伸びて、銀河まで丸呑み!! 小さなサメが海から宇宙まで巨大化する3D捕食アクション「ギャラクシーシャーク」'));
+      });
+      document.getElementById('res-share-btn').addEventListener('click', () => {
+        const sc = this.lastScore ? this.lastScore.total : 0;
+        const len = formatLength(this.shark.realLengthMeters);
+        shareToX(this.lastResultClear
+          ? tx('「ギャラクシーシャーク」で銀河を制覇!! {0}・スコア {1} 点・体長 {2}', document.getElementById('result-rank').textContent, formatInt(sc), len)
+          : tx('「ギャラクシーシャーク」で体長 {0} まで巨大化!! スコア {1} 点', len, formatInt(sc)));
+      });
+
       // Result buttons
       document.getElementById('res-retry-btn').addEventListener('click', () => {
         document.getElementById('result-modal').classList.remove('active');
@@ -7513,6 +7550,7 @@
       }
       rank = tx(rank);
       this.lastScore = sc;
+      this.lastResultClear = isClear;
       document.getElementById('res-score').textContent = tx('{0} 点', formatInt(totalScore));
       document.getElementById('result-rank').textContent = rank;
       document.getElementById('res-time').textContent = formatTime(this.stats.elapsedSec);
