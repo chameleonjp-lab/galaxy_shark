@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - index.html
+      - ranking-client.js
+      - ranking-manifest.json
+      - tools/i18n/**
       - vendor/**
       - i18n/**
       - ogp.jpg
@@ -28,7 +31,10 @@ jobs:
           persist-credentials: false
       - name: Prepare site
         run: |
+          node --check ranking-client.js
           install -Dm644 index.html _site/index.html
+          install -Dm644 ranking-client.js _site/ranking-client.js
+          install -Dm644 ranking-manifest.json _site/ranking-manifest.json
           install -Dm644 ogp.jpg _site/ogp.jpg
           install -Dm644 -t _site/vendor vendor/three.min.js vendor/three.LICENSE vendor/fonts.LICENSE
           install -Dm644 -t _site/i18n i18n/*.js

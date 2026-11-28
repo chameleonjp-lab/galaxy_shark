@@ -114,7 +114,7 @@
       }
     };
     // 日本語以外は、その言語の翻訳ファイルだけを読み込む
-    if (lang !== 'ja') document.write('<script src="i18n/' + lang + '.js"><\/script>');
+    if (lang !== 'ja') document.write('<script src="i18n/' + lang + '.js?v=20261128-01"><\/script>');
   })();
 </script>
 <script src="vendor/three.min.js"></script>
@@ -1037,6 +1037,30 @@
     align-items: center;
     gap: 12px;
   }
+  .home-player { width: min(320px, 84vw); color: #fff; font: 700 12px/1.35 sans-serif; }
+  .home-player label, #home-play-count { text-shadow: 1px 2px 2px #050508; }
+  .home-player input {
+    display: block; width: 100%; margin: 3px 0;
+    padding: 6px 10px; color: #050508; background: #FFFDF0;
+    border: 3px solid #050508; border-radius: 0; font: 16px/1.25 sans-serif;
+    user-select: text; -webkit-user-select: text; -webkit-touch-callout: default;
+  }
+  .home-player small { display: block; font-size: 12px; }
+  #home-play-count { margin: 3px 0 0; }
+  .home-share-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .ranking-link { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+  .result-ranking { flex: 0 0 auto; font: 700 14px/1.4 sans-serif; }
+  .result-ranking h2 { margin: 0; font-size: 16px; }
+  .result-ranking p { margin: 4px 0; }
+  .result-ranking [hidden] { display: none; }
+  #ranking-rows {
+    max-height: 9rem; overflow-y: auto; touch-action: pan-y; overscroll-behavior-y: contain;
+    margin: 4px 0; padding: 0; list-style: none; text-align: left;
+  }
+  #ranking-rows li {
+    display: grid; grid-template-columns: 2.5em minmax(0, 1fr) auto; gap: 8px;
+    padding: 4px 6px; border-bottom: 1px solid #c4c4c4; overflow-wrap: anywhere;
+  }
   #play-btn {
     font-family: 'GS Bangers', 'GS Dela', var(--comic-font);
     letter-spacing: 0.05em;
@@ -1401,6 +1425,20 @@
     .stat-cell { padding: 5px; box-shadow: 3px 3px 0 #050508; }
     .stat-cell-val { font-size: 15px; }
     .result-actions .act-btn { padding: 6px 12px; font-size: 13px; }
+    .cover-center-actions { gap: 6px; }
+    .home-share-row .share-x-btn, .home-share-row .ranking-link { padding: 3px 12px; }
+    #ranking-rows { max-height: 6rem; }
+  }
+  @media (max-height: 480px) and (min-width: 500px) {
+    #title-screen {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: auto 1fr auto; gap: 6px 12px;
+    }
+    .cover-top-row, .cover-bottom-row { grid-column: 1 / -1; }
+    .cover-title-block { margin-top: 0; }
+    .cover-logo, .cover-logo.logo-ja { font-size: clamp(30px, 6vw, 54px); }
+    .cover-burst { width: 110%; }
+    .home-player { max-width: 100%; }
   }
   @media (max-width: 600px) and (orientation: portrait) {
     .cover-logo { font-size: 20vw; }
@@ -1443,9 +1481,17 @@
     </div>
 
     <div class="cover-center-actions">
+      <div class="home-player">
+        <label for="player-name">名前（任意）</label>
+        <input id="player-name" type="text" maxlength="40" autocomplete="off" aria-describedby="player-name-hint" />
+        <small id="player-name-hint">名前とスコアはランキングに公開されます。空欄でも遊べます。</small>
+        <p id="home-play-count" hidden></p>
+      </div>
       <button id="play-btn">スタート!!</button>
-      <button id="share-x-btn" class="share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></button>
-
+      <div class="home-share-row">
+        <button id="share-x-btn" class="share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></button>
+        <a class="comic-mini-btn ranking-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=galaxy_shark">ランキング</a>
+      </div>
     </div>
 
     <div class="cover-bottom-row">
@@ -1593,11 +1639,20 @@
         <div class="stat-cell" style="grid-column:span 2;"><div class="stat-cell-label">捕食数 / 最大コンボ</div><div id="res-combo" class="stat-cell-val"></div></div>
         <div class="stat-cell" style="grid-column:span 2;"><div class="stat-cell-label">腕前</div><div id="res-skill" class="stat-cell-val" style="font-size:clamp(13px,2.2vw,18px);">—</div></div>
       </div>
+      <section class="result-ranking" aria-labelledby="ranking-heading">
+        <h2 id="ranking-heading">ランキング上位30人</h2>
+        <p id="ranking-submit-status" role="status" hidden></p>
+        <button id="ranking-submit-retry" class="comic-mini-btn" hidden>記録を再送する</button>
+        <p id="ranking-board-status" role="status"></p>
+        <button id="ranking-board-retry" class="comic-mini-btn" hidden>ランキングを再読み込み</button>
+        <ol id="ranking-rows" tabindex="0" aria-labelledby="ranking-heading" hidden></ol>
+      </section>
       <div class="result-actions">
         <button id="res-retry-btn" class="act-btn">もう一度遊ぶ</button>
         <button id="res-endless-btn" class="act-btn cyan">銀河エンドレス遊泳</button>
         <button id="res-title-btn" class="act-btn red">タイトルへ</button>
         <button id="res-share-btn" class="act-btn share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></button>
+        <a class="act-btn ranking-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=galaxy_shark">ランキング</a>
       </div>
     </div>
   </div>
@@ -1619,6 +1674,7 @@
     el.hidden = false;
   };
 </script>
+<script src="ranking-client.js?v=20261128-01"></script>
 <script>
 (() => {
   'use strict';
@@ -1645,6 +1701,11 @@
     }
     sel.value = I.lang;
     sel.addEventListener('change', () => I.setLanguage(sel.value));
+    document.querySelectorAll('.ranking-link').forEach(link => {
+      const url = new URL(link.href);
+      url.searchParams.set('lang', I.lang);
+      link.href = url.href;
+    });
   })();
   if (!window.THREE) {
     window.__showFatal('3D 表示に必要な部品（Three.js）を読み込めませんでした。');
@@ -5930,7 +5991,9 @@
         if (e.cancelable) e.preventDefault();
       };
       for (const event of ['contextmenu', 'selectstart', 'dragstart', 'dblclick', 'gesturestart', 'gesturechange', 'gestureend']) {
-        gameWrap.addEventListener(event, cancelBrowserAction, { capture: true, passive: false });
+        gameWrap.addEventListener(event, (e) => {
+          if (!e.target.closest('#player-name') || event.startsWith('gesture')) cancelBrowserAction(e);
+        }, { capture: true, passive: false });
       }
       // Safari decides whether to start back/forward navigation on the initial edge touch.
       gameWrap.addEventListener('touchstart', (e) => {
@@ -5941,7 +6004,7 @@
       }, { capture: true, passive: false });
       gameWrap.addEventListener('touchmove', (e) => {
         // Preserve single-finger button taps and scrolling inside the game panels.
-        if (e.touches.length > 1 || !e.target.closest('button, #evo-modal-inner, #result-box')) {
+        if (e.touches.length > 1 || !e.target.closest('button, a, #player-name, #evo-modal-inner, #result-box')) {
           cancelBrowserAction(e);
         }
       }, { capture: true, passive: false });
@@ -5975,6 +6038,7 @@
       document.getElementById('btn-fullscreen').addEventListener('click', (e) => { e.stopPropagation(); this.toggleFullscreen(); });
       document.getElementById('title-fullscreen-btn').addEventListener('click', () => this.toggleFullscreen());
       window.addEventListener('keydown', (e) => {
+        if (e.isComposing || e.target === document.getElementById('player-name')) return;
         if (e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) this.toggleFullscreen();
       });
 
@@ -5996,7 +6060,7 @@
       window.addEventListener('keydown', unlockAudio, { once: true });
 
       document.getElementById('play-btn').addEventListener('click', () => this.startGameWithTear());
-
+      this.bindRanking();
 
       const toggleMute = () => {
         this.audio.init();
@@ -6061,6 +6125,7 @@
         this.mode = 'TITLE';
         this.resetState();
         document.getElementById('title-screen').classList.remove('hidden');
+        void this.refreshPlayCount();
       });
 
       document.getElementById('btn-flash').addEventListener('click', (e) => {
@@ -6110,6 +6175,7 @@
 
       // Result buttons
       document.getElementById('res-retry-btn').addEventListener('click', () => {
+        if (this.mode !== 'CLEAR' && this.mode !== 'GAME_OVER') return;
         document.getElementById('result-modal').classList.remove('active');
         this.startNewRun();
       });
@@ -6125,10 +6191,12 @@
         document.getElementById('hud').classList.remove('active');
         document.getElementById('title-screen').classList.remove('hidden');
         this.resetState();
+        void this.refreshPlayCount();
       });
 
       // Keyboard
       window.addEventListener('keydown', (e) => {
+        if (e.isComposing || e.target === document.getElementById('player-name')) return;
         const k = e.code;
         if (k === 'Space' && this.mode === 'PLAYING') e.preventDefault();
         this.keys.add(k);
@@ -6325,7 +6393,89 @@
       this.vertStick = { y: -dy / maxY, active: true };
     }
 
+    bindRanking() {
+      const ranking = window.GalaxyRanking;
+      const name = document.getElementById('player-name');
+      name.value = ranking?.savedName() ?? '';
+      const save = () => {
+        if ([...name.value].length > 20) name.value = [...name.value].slice(0, 20).join('');
+        ranking?.saveName(name.value);
+      };
+      name.addEventListener('input', (event) => { if (!event.isComposing) save(); });
+      name.addEventListener('compositionend', save);
+      document.getElementById('ranking-board-retry').addEventListener('click', () => void this.loadRanking(this.rankingResult));
+      document.getElementById('ranking-submit-retry').addEventListener('click', () => void this.submitRanking(this.rankingResult));
+      window.addEventListener('online', () => { if (this.mode === 'TITLE') void this.refreshPlayCount(); });
+      void this.refreshPlayCount();
+    }
+
+    async refreshPlayCount() {
+      const request = this.playCountRequest = Symbol();
+      const label = document.getElementById('home-play-count');
+      try {
+        const count = await window.GalaxyRanking.playCount();
+        if (this.playCountRequest !== request) return;
+        label.textContent = tx('プレイ回数：{0}', formatInt(count));
+        label.hidden = false;
+      } catch {}
+    }
+
+    async loadRanking(result) {
+      const request = result.boardRequest = Symbol();
+      const status = document.getElementById('ranking-board-status');
+      const retry = document.getElementById('ranking-board-retry');
+      const list = document.getElementById('ranking-rows');
+      const isCurrent = () => this.rankingResult === result && result.boardRequest === request;
+      status.hidden = false;
+      status.textContent = tx('ランキングを読み込み中…');
+      retry.hidden = true;
+      list.hidden = true;
+      list.replaceChildren();
+      try {
+        const rows = await window.GalaxyRanking.top30();
+        if (!isCurrent()) return;
+        for (const row of rows) {
+          const item = document.createElement('li');
+          for (const value of [formatInt(row.rank_no), row.display_name, formatInt(row.best_score)]) {
+            const cell = document.createElement('span');
+            cell.dir = 'auto';
+            cell.textContent = value;
+            item.append(cell);
+          }
+          list.append(item);
+        }
+        list.hidden = rows.length === 0;
+        status.hidden = rows.length > 0;
+        status.textContent = rows.length ? '' : tx('まだランキングの記録がありません。');
+      } catch {
+        if (!isCurrent()) return;
+        status.textContent = tx('ランキングを読み込めませんでした。');
+        retry.hidden = false;
+      }
+    }
+
+    async submitRanking(result) {
+      const status = document.getElementById('ranking-submit-status');
+      const retry = document.getElementById('ranking-submit-retry');
+      status.hidden = false;
+      status.textContent = tx('記録を送信中…');
+      retry.hidden = true;
+      try {
+        await result.send();
+      } catch {
+        if (this.rankingResult !== result) return;
+        status.textContent = tx('記録を送信できませんでした。');
+        retry.hidden = false;
+        return;
+      }
+      if (this.rankingResult !== result) return;
+      status.textContent = tx('ランキングに記録しました。');
+      void this.loadRanking(result);
+    }
+
     startGameWithTear() {
+      if (this.mode !== 'TITLE') return;
+      document.getElementById('player-name').blur();
       this.audio.init();
       this.audio.playBite(1, 3);
       const tear = document.getElementById('page-tear');
@@ -6359,6 +6509,11 @@
     startNewRun() {
       this.resetState();
       this.mode = 'PLAYING';
+      this.rankingResult = null;
+      const player = document.getElementById('player-name');
+      const name = window.GalaxyRanking?.saveName(player.value) ?? player.value;
+      player.value = name;
+      this.rankingRun = IS_DEBUG ? null : window.GalaxyRanking?.begin(name);
       document.getElementById('hud').classList.add('active');
       this.showIssueCaption(1);
       this.pushNews(NEWS_BY_PHASE[1][0]);
@@ -7528,6 +7683,7 @@
     }
 
     showResult(isClear) {
+      if (this.mode === 'CLEAR' || this.mode === 'GAME_OVER') return;
       this.hideEvolutionUI();
       this.mode = isClear ? 'CLEAR' : 'GAME_OVER';
       this.releaseSticks();
@@ -7561,6 +7717,16 @@
       document.getElementById('res-combo').textContent = tx('{0}体捕食・最大{1}コンボ', formatInt(this.stats.totalEaten), formatInt(this.stats.maxCombo));
       document.getElementById('res-skill').textContent = tx('ボス撃破 {0}・カウンター {1}回・レア {2}体・被ダメージ {3}', this.stats.bossesDefeated, this.stats.counters, this.stats.goldenEaten, Math.round(this.stats.damageTaken));
       document.getElementById('result-modal').classList.add('active');
+      const run = this.rankingRun;
+      this.rankingRun = null;
+      const result = this.rankingResult = {};
+      document.getElementById('ranking-submit-status').hidden = true;
+      document.getElementById('ranking-submit-retry').hidden = true;
+      void this.loadRanking(result);
+      if (run && !this.usedDebug) {
+        result.send = window.GalaxyRanking.finish(run, isClear ? 'clear' : 'game_over', this.shark.phase, totalScore);
+        void this.submitRanking(result);
+      }
     }
 
     // ================= MAIN 10-STEP LOOP =================
