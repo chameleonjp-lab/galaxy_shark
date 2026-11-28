@@ -1413,13 +1413,11 @@
     background: #FFE600; border: 3px solid #050508; cursor: pointer;
   }
 
-  /* 結果画面のボタンは、箱の中を動かさなくても常に見えるように下へ固定する */
   .result-actions {
-    position: sticky;
-    bottom: -16px;
+    flex: none;
     display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
-    margin: 8px -16px -16px; padding: 10px 16px 14px;
-    background: #FFFDF0; border-top: 4px solid #050508;
+    padding: 10px 4px 14px;
+    background: #FFFDF0; border-block: 3px solid #050508;
   }
   @media (max-height: 480px) {
     .cover-logo { font-size: clamp(40px, 17vh, 84px); }
@@ -1661,12 +1659,6 @@
         <div class="stat-cell" style="grid-column:span 2;"><div class="stat-cell-label">捕食数 / 最大コンボ</div><div id="res-combo" class="stat-cell-val"></div></div>
         <div class="stat-cell" style="grid-column:span 2;"><div class="stat-cell-label">腕前</div><div id="res-skill" class="stat-cell-val" style="font-size:clamp(13px,2.2vw,18px);">—</div></div>
       </div>
-      <section class="result-ranking" aria-labelledby="ranking-heading">
-        <h2 id="ranking-heading">ランキング上位30人</h2>
-        <p id="ranking-board-status" role="status"></p>
-        <button id="ranking-board-retry" class="comic-mini-btn" hidden>ランキングを再読み込み</button>
-        <ol id="ranking-rows" tabindex="0" aria-labelledby="ranking-heading" hidden></ol>
-      </section>
       <div class="result-actions">
         <button id="res-retry-btn" class="act-btn">もう一度遊ぶ</button>
         <button id="res-endless-btn" class="act-btn cyan">銀河エンドレス遊泳</button>
@@ -1674,6 +1666,12 @@
         <button type="button" id="res-share-btn" class="act-btn share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></button>
         <a class="act-btn ranking-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=galaxy_shark">ランキング</a>
       </div>
+      <section class="result-ranking" aria-labelledby="ranking-heading">
+        <h2 id="ranking-heading">ランキング上位30人</h2>
+        <p id="ranking-board-status" role="status"></p>
+        <button id="ranking-board-retry" class="comic-mini-btn" hidden>ランキングを再読み込み</button>
+        <ol id="ranking-rows" tabindex="0" aria-labelledby="ranking-heading" hidden></ol>
+      </section>
     </div>
   </div>
 </div>
