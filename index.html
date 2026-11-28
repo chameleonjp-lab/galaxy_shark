@@ -114,7 +114,7 @@
       }
     };
     // 日本語以外は、その言語の翻訳ファイルだけを読み込む
-    if (lang !== 'ja') document.write('<script src="i18n/' + lang + '.js?v=20261128-02"><\/script>');
+    if (lang !== 'ja') document.write('<script src="i18n/' + lang + '.js?v=20261128-03"><\/script>');
   })();
 </script>
 <script src="vendor/three.min.js"></script>
@@ -1041,13 +1041,13 @@
   }
   .home-player { width: min(320px, 84vw); color: #fff; font: 700 12px/1.35 sans-serif; }
   #home-play-count { text-shadow: 1px 2px 2px #050508; }
-  .home-player input {
+  .home-player input, #ranking-clear-name {
     display: block; width: 100%; margin: 3px 0;
     padding: 6px 10px; color: #050508; background: #fff;
     border: 3px solid #050508; border-radius: 0; font: 16px/1.25 sans-serif;
     user-select: text; -webkit-user-select: text; -webkit-touch-callout: default;
   }
-  .home-player input::placeholder { color: #666; opacity: 1; }
+  .home-player input::placeholder, #ranking-clear-name::placeholder { color: #666; opacity: 1; }
   .home-player small { display: block; font-size: 12px; }
   #home-play-count { margin: 3px 0 0; }
   .home-share-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
@@ -1060,6 +1060,10 @@
   .result-score-submission p { margin: 4px 0 0; }
   .result-score-submission button { margin-top: 6px; }
   .result-score-submission [hidden] { display: none; }
+  #ranking-clear-form:not([hidden]) { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 8px; }
+  #ranking-clear-form p { flex-basis: 100%; }
+  #ranking-clear-name { width: min(180px, 100%); }
+  #ranking-clear-form button { margin: 0; }
   #ranking-rows {
     max-height: 9rem; overflow-y: auto; touch-action: pan-y; overscroll-behavior-y: contain;
     margin: 4px 0; padding: 0; list-style: none; text-align: left;
@@ -1643,6 +1647,11 @@
           <div class="result-score-submission">
             <p id="ranking-submit-status" role="status" hidden></p>
             <button id="ranking-submit-retry" class="comic-mini-btn" hidden>記録を再送する</button>
+            <form id="ranking-clear-form" hidden>
+              <p id="ranking-clear-hint">名前を入れると、このクリア記録をランキングに登録できます。</p>
+              <input id="ranking-clear-name" type="text" placeholder="名前（任意）" aria-label="名前（任意）" aria-describedby="ranking-clear-hint" maxlength="40" autocomplete="off" required />
+              <button type="submit" class="comic-mini-btn">ランキングに登録する</button>
+            </form>
           </div>
         </div>
         <div class="stat-cell"><div id="res-time-label" class="stat-cell-label">クリアタイム</div><div id="res-time" class="stat-cell-val">00:00</div></div>
@@ -1685,7 +1694,7 @@
     el.hidden = false;
   };
 </script>
-<script src="ranking-client.js?v=20261128-01"></script>
+<script src="ranking-client.js?v=20261128-03"></script>
 <script>
 (() => {
   'use strict';
@@ -6016,7 +6025,7 @@
       };
       for (const event of ['contextmenu', 'selectstart', 'dragstart', 'dblclick', 'gesturestart', 'gesturechange', 'gestureend']) {
         gameWrap.addEventListener(event, (e) => {
-          if (!e.target.closest('#player-name') || event.startsWith('gesture')) cancelBrowserAction(e);
+          if (!e.target.closest('input') || event.startsWith('gesture')) cancelBrowserAction(e);
         }, { capture: true, passive: false });
       }
       // Safari decides whether to start back/forward navigation on the initial edge touch.
@@ -6062,7 +6071,7 @@
       document.getElementById('btn-fullscreen').addEventListener('click', (e) => { e.stopPropagation(); this.toggleFullscreen(); });
       document.getElementById('title-fullscreen-btn').addEventListener('click', () => this.toggleFullscreen());
       window.addEventListener('keydown', (e) => {
-        if (e.isComposing || e.target === document.getElementById('player-name')) return;
+        if (e.isComposing || e.target instanceof HTMLInputElement) return;
         if (e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) this.toggleFullscreen();
       });
 
@@ -6220,7 +6229,7 @@
 
       // Keyboard
       window.addEventListener('keydown', (e) => {
-        if (e.isComposing || e.target === document.getElementById('player-name')) return;
+        if (e.isComposing || e.target instanceof HTMLInputElement) return;
         const k = e.code;
         if (k === 'Space' && this.mode === 'PLAYING') e.preventDefault();
         this.keys.add(k);
@@ -6429,6 +6438,23 @@
       name.addEventListener('compositionend', save);
       document.getElementById('ranking-board-retry').addEventListener('click', () => void this.loadRanking(this.rankingResult));
       document.getElementById('ranking-submit-retry').addEventListener('click', () => void this.submitRanking(this.rankingResult));
+      const clearForm = document.getElementById('ranking-clear-form');
+      const clearName = document.getElementById('ranking-clear-name');
+      clearForm.addEventListener('submit', event => {
+        event.preventDefault();
+        const result = this.rankingResult;
+        if (!result?.registerClear) return;
+        const value = ranking.cleanName(clearName.value);
+        if (!value) {
+          clearName.value = '';
+          clearName.reportValidity();
+          return;
+        }
+        const register = result.registerClear;
+        result.registerClear = null;
+        clearForm.hidden = true;
+        register(value);
+      });
       window.addEventListener('online', () => { if (this.mode === 'TITLE') void this.refreshPlayCount(); });
       void this.refreshPlayCount();
     }
@@ -7767,12 +7793,22 @@
       this.rankingRun = null;
       const result = this.rankingResult = {};
       const submitStatus = document.getElementById('ranking-submit-status');
+      const clearForm = document.getElementById('ranking-clear-form');
+      clearForm.hidden = true;
       submitStatus.hidden = true;
       document.getElementById('ranking-submit-retry').hidden = true;
       void this.loadRanking(result);
-      if (run && !this.usedDebug) {
+      if (run?.name && !this.usedDebug) {
         result.send = window.GalaxyRanking.finish(run, isClear ? 'clear' : 'game_over', this.shark.phase, totalScore);
         void this.submitRanking(result);
+      } else if (run && isClear && !this.usedDebug) {
+        const phase = this.shark.phase;
+        result.registerClear = name => {
+          result.send = window.GalaxyRanking.finish({ ...run, name }, 'clear', phase, totalScore);
+          void this.submitRanking(result);
+        };
+        clearForm.reset();
+        clearForm.hidden = false;
       } else if (!IS_DEBUG && !this.usedDebug && !document.getElementById('player-name').value) {
         submitStatus.textContent = tx('名前が空欄のため、ランキングには登録されません。');
         submitStatus.hidden = false;
