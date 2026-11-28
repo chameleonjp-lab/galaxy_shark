@@ -1499,7 +1499,7 @@
       </div>
       <button id="play-btn">スタート!!</button>
       <div class="home-share-row">
-        <a id="share-x-btn" class="share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></a>
+        <button type="button" id="share-x-btn" class="share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></button>
         <a class="comic-mini-btn ranking-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=galaxy_shark">ランキング</a>
       </div>
     </div>
@@ -1671,7 +1671,7 @@
         <button id="res-retry-btn" class="act-btn">もう一度遊ぶ</button>
         <button id="res-endless-btn" class="act-btn cyan">銀河エンドレス遊泳</button>
         <button id="res-title-btn" class="act-btn red">タイトルへ</button>
-        <a id="res-share-btn" class="act-btn share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></a>
+        <button type="button" id="res-share-btn" class="act-btn share-x-btn" aria-label="Xでシェア"><svg class="x-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>シェア</span></button>
         <a class="act-btn ranking-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=galaxy_shark">ランキング</a>
       </div>
     </div>
@@ -1703,11 +1703,15 @@
   const LANG = window.GS_I18N?.lang || 'ja';
   const IS_JA = LANG === 'ja';
   const SHARE_URL = 'https://chameleonjp-lab.github.io/galaxy_shark/';
-  function xShareHref(text) {
+  // SNS共有リンクを隠す設定でボタンが消えないよう、押したときに投稿画面を開く。
+  function openXShare(text) {
     const hashtag = IS_JA ? 'ギャラクシーシャーク' : 'GalaxyShark';
-    return 'https://x.com/intent/tweet?text=' + encodeURIComponent(`${text}\n#${hashtag}\n${SHARE_URL}`);
+    const body = `${text}\n#${hashtag}\n${SHARE_URL}`;
+    window.location.assign('https://x.com/intent/tweet?text=' + encodeURIComponent(body));
   }
-  document.getElementById('share-x-btn').href = xShareHref(tx('食って、伸びて、銀河まで丸呑み!! 小さなサメが海から宇宙まで巨大化する3D捕食アクション「ギャラクシーシャーク」'));
+  document.getElementById('share-x-btn').addEventListener('click', () => {
+    openXShare(tx('食って、伸びて、銀河まで丸呑み!! 小さなサメが海から宇宙まで巨大化する3D捕食アクション「ギャラクシーシャーク」'));
+  });
   // 画面の部品を選んだ言語にし、ホーム左上の「language」欄を用意する（3D表示が使えなくても動くよう、最初に行う）
   (() => {
     const I = window.GS_I18N;
@@ -7782,7 +7786,7 @@
       const shareText = isClear
         ? tx('「ギャラクシーシャーク」で銀河を制覇!! {0}・スコア {1} 点・体長 {2}', rank, formattedScore, formattedLength)
         : tx('「ギャラクシーシャーク」で体長 {0} まで巨大化!! スコア {1} 点', formattedLength, formattedScore);
-      document.getElementById('res-share-btn').href = xShareHref(shareText);
+      document.getElementById('res-share-btn').onclick = () => openXShare(shareText);
       document.getElementById('result-modal').classList.add('active');
       const run = this.rankingRun;
       this.rankingRun = null;

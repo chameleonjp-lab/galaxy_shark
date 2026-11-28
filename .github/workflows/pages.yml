@@ -6,6 +6,7 @@ on:
       - index.html
       - ranking-client.js
       - ranking-manifest.json
+      - tools/check-x-share.mjs
       - tools/i18n/**
       - vendor/**
       - i18n/**
@@ -32,6 +33,7 @@ jobs:
       - name: Prepare site
         run: |
           node --check ranking-client.js
+          node --test tools/check-x-share.mjs
           install -Dm644 index.html _site/index.html
           install -Dm644 ranking-client.js _site/ranking-client.js
           install -Dm644 ranking-manifest.json _site/ranking-manifest.json
