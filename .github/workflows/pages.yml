@@ -5,6 +5,7 @@ on:
     paths:
       - index.html
       - vendor/**
+      - i18n/**
       - .github/workflows/pages.yml
   push:
     branches: ['**']
@@ -28,6 +29,7 @@ jobs:
         run: |
           install -Dm644 index.html _site/index.html
           install -Dm644 -t _site/vendor vendor/three.min.js vendor/three.LICENSE vendor/fonts.LICENSE
+          install -Dm644 -t _site/i18n i18n/*.js
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
