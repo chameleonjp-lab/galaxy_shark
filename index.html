@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>GALAXY SHARK — アメコミ調3Dサメ巨大化捕食アクション</title>
+<title>ギャラクシーシャーク — アメコミ調3Dサメ巨大化捕食アクション</title>
 <meta name="description" content="小さなサメを操作して獲物を食べ、海から都市、空、宇宙、そして銀河まで巨大化していく、アメコミ調の3D捕食アクションゲーム。ブラウザですぐ遊べます。" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content="GALAXY SHARK — 食って、伸びて、銀河まで丸呑み!!" />
@@ -11,6 +11,105 @@
 <meta name="twitter:card" content="summary" />
 <meta name="theme-color" content="#02182b" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23FFE600'/%3E%3Cpath d='M8 40 Q30 14 56 30 L46 34 L56 44 Q30 52 8 40 Z' fill='%231b4d89' stroke='%23050508' stroke-width='3'/%3E%3Cpath d='M30 22 L36 8 L40 24 Z' fill='%231b4d89' stroke='%23050508' stroke-width='3'/%3E%3C/svg%3E" />
+<script>
+  // ===== 多言語対応（15言語）。対応言語・名称・地域設定は、ほかの作品（サイノメ、イカゲット）とそろえている =====
+  (function () {
+    var LANGS = [
+      { id: 'ja', name: '日本語', locale: 'ja-JP' },
+      { id: 'en', name: 'English', locale: 'en-US' },
+      { id: 'es', name: 'Español', locale: 'es-ES' },
+      { id: 'pt-BR', name: 'Português (Brasil)', locale: 'pt-BR' },
+      { id: 'zh-Hans', name: '简体中文', locale: 'zh-CN' },
+      { id: 'fr', name: 'Français', locale: 'fr-FR' },
+      { id: 'de', name: 'Deutsch', locale: 'de-DE' },
+      { id: 'ko', name: '한국어', locale: 'ko-KR' },
+      { id: 'ru', name: 'Русский', locale: 'ru-RU' },
+      { id: 'it', name: 'Italiano', locale: 'it-IT' },
+      { id: 'zh-Hant', name: '繁體中文', locale: 'zh-TW' },
+      { id: 'id', name: 'Bahasa Indonesia', locale: 'id-ID' },
+      { id: 'tr', name: 'Türkçe', locale: 'tr-TR' },
+      { id: 'vi', name: 'Tiếng Việt', locale: 'vi-VN' },
+      { id: 'th', name: 'ไทย', locale: 'th-TH' }
+    ];
+    var KEY = 'gs_language_v1';
+    function isSupported(id) { for (var i = 0; i < LANGS.length; i++) if (LANGS[i].id === id) return true; return false; }
+    // ブラウザの言語タグ → 対応言語（ほかの作品と同じ規則）
+    function fromLocale(tag) {
+      if (typeof tag !== 'string') return null;
+      var parts = tag.trim().toLowerCase().replace(/_/g, '-').split('-');
+      var base = parts[0];
+      if (base === 'zh') {
+        if (parts.indexOf('hant') >= 0) return 'zh-Hant';
+        if (parts.indexOf('hans') >= 0) return 'zh-Hans';
+        return (parts.indexOf('tw') >= 0 || parts.indexOf('hk') >= 0 || parts.indexOf('mo') >= 0) ? 'zh-Hant' : 'zh-Hans';
+      }
+      if (base === 'pt') return 'pt-BR';
+      return isSupported(base) ? base : null;
+    }
+    // アドレスの指定 → 保存した言語 → 端末の言語 → 日本語 の順で決める
+    var query = null;
+    try { query = new URLSearchParams(location.search).get('lang'); } catch (e) {}
+    var saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    var lang = null;
+    if (isSupported(query)) { lang = query; try { localStorage.setItem(KEY, query); } catch (e) {} }
+    else if (isSupported(saved)) lang = saved;
+    else {
+      var tags = (navigator.languages || []).concat([navigator.language]);
+      for (var i = 0; i < tags.length && !lang; i++) lang = fromLocale(tags[i]);
+    }
+    if (!lang) lang = 'ja';
+    var locale = 'ja-JP';
+    for (var j = 0; j < LANGS.length; j++) if (LANGS[j].id === lang) locale = LANGS[j].locale;
+    document.documentElement.lang = lang;
+
+    var api = window.GS_I18N = {
+      lang: lang, locale: locale, languages: LANGS, pack: null,
+      t: function (src) {
+        var vals = Array.prototype.slice.call(arguments, 1);
+        var msg = String(src);
+        if (api.pack && Object.prototype.hasOwnProperty.call(api.pack, msg)) msg = api.pack[msg];
+        else if (lang !== 'ja' && api.onMiss) api.onMiss(msg);
+        return msg.replace(/\{(\d+)\}/g, function (m, k) { return vals[+k] !== undefined ? vals[+k] : m; });
+      },
+      setLanguage: function (id) {
+        if (!isSupported(id)) return;
+        try { localStorage.setItem(KEY, id); } catch (e) {}
+        var url = new URL(location.href);
+        url.searchParams.set('lang', id);
+        location.replace(url.href);
+      },
+      // 画面の部品に書かれた日本語を、選んだ言語に置き換える
+      localize: function (root) {
+        if (lang === 'ja' || !root) return;
+        var htmlEls = root.querySelectorAll('[data-i18n-html]');
+        for (var a = 0; a < htmlEls.length; a++) htmlEls[a].innerHTML = api.t(htmlEls[a].innerHTML.trim());
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        var nodes = [];
+        for (var n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n);
+        for (var b = 0; b < nodes.length; b++) {
+          var node = nodes[b];
+          var parent = node.parentElement;
+          if (!parent || parent.closest('script, style, select, [data-i18n-html], [data-no-i18n]')) continue;
+          var key = node.data.trim();
+          if (!key || !/[\u3040-\u30ff\u3400-\u9fff]/.test(key)) continue;
+          var tr = api.t(key);
+          if (tr !== key) node.data = node.data.replace(key, tr);
+        }
+        var attrs = ['title', 'aria-label'];
+        var withAttr = root.querySelectorAll('[title], [aria-label]');
+        for (var c = 0; c < withAttr.length; c++) {
+          for (var d = 0; d < attrs.length; d++) {
+            var v = withAttr[c].getAttribute(attrs[d]);
+            if (v && /[\u3040-\u30ff\u3400-\u9fff]/.test(v)) withAttr[c].setAttribute(attrs[d], api.t(v));
+          }
+        }
+      }
+    };
+    // 日本語以外は、その言語の翻訳ファイルだけを読み込む
+    if (lang !== 'ja') document.write('<script src="i18n/' + lang + '.js"><\/script>');
+  })();
+</script>
 <script src="vendor/three.min.js"></script>
 <script>
   // 同梱の Three.js が読めなかったときだけ、配布元（CDN）から読み直す
@@ -36,9 +135,10 @@
   }
 
   /* Prevent awkward mid-word Japanese line breaks across ALL UI elements */
-  #story-title, #story-desc, .controls-tip, #tap-bite-guide, #gauge-tut-callout,
+  /* 日本語と韓国語だけ、単語の途中で改行しない（中国語・タイ語などは文字の間で改行してよい） */
+  :is(html:lang(ja), html:lang(ko)) :is(#story-title, #story-desc, .controls-tip, #tap-bite-guide, #gauge-tut-callout,
   #forced-evo-callout, #evo-top-notice, .evo-card-name, .evo-card-desc,
-  #boss-subinfo, #result-sub, #pause-overlay, #clear-banner, .comic-mini-btn, .act-btn {
+  #boss-subinfo, #result-sub, #pause-overlay, #clear-banner, .comic-mini-btn, .act-btn) {
     word-break: keep-all;
     overflow-wrap: break-word;
     line-break: strict;
@@ -76,16 +176,17 @@
   }
 
   /* Variant Cover Skin Filters (Applied to BOTH Title Screen AND 3D WebGL Canvas!) */
-  body.skin-GOLDEN_AGE #gl-canvas, body.skin-GOLDEN_AGE #title-screen {
+  /* スキンの色の効果は3D画面だけにかける（ロゴやボタン、表示の文字は元の色のまま） */
+  body.skin-GOLDEN_AGE #gl-canvas {
     filter: sepia(0.45) contrast(1.18) saturate(0.92);
   }
-  body.skin-NOIR #gl-canvas, body.skin-NOIR #title-screen {
+  body.skin-NOIR #gl-canvas {
     filter: grayscale(1) contrast(1.45) brightness(0.95);
   }
-  body.skin-NEON_CYBER #gl-canvas, body.skin-NEON_CYBER #title-screen {
+  body.skin-NEON_CYBER #gl-canvas {
     filter: contrast(1.28) saturate(1.75) hue-rotate(18deg);
   }
-  body.skin-SKETCHBOOK #gl-canvas, body.skin-SKETCHBOOK #title-screen {
+  body.skin-SKETCHBOOK #gl-canvas {
     filter: grayscale(0.88) contrast(1.55) brightness(1.18);
   }
 
@@ -770,36 +871,147 @@
     align-items: flex-start;
     gap: 10px;
   }
+  .cover-top-btns {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+  }
+  .cover-top-btns .comic-mini-btn { white-space: nowrap; }
   .issue-stamp {
     white-space: nowrap;
+    font-family: 'GS Bangers', var(--comic-font);
+    letter-spacing: 0.05em;
     background: #FFE600;
     color: #050508;
     border: 4px solid #050508;
     box-shadow: 5px 5px 0 #050508;
     padding: 6px 12px;
     font-size: clamp(12px, 1.8vw, 16px);
-    font-weight: 900;
+    font-weight: 400;
     transform: rotate(-4deg);
   }
+  /* タイトル用の書体（必要な字だけを埋め込み。どちらも SIL Open Font License 1.1。vendor/fonts.LICENSE を参照）
+     - Bangers：アメコミの見出し風の英字書体（ラテン文字・拡張ラテン文字・ベトナム語の文字）
+     - Dela Gothic One：太い日本語書体（日本語のロゴ・キャッチコピー・スタートボタンに使う字だけ） */
+  @font-face {
+    font-family: 'GS Bangers';
+    src: url(data:font/woff2;base64,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) format('woff2');
+    unicode-range: U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'GS Bangers';
+    src: url(data:font/woff2;base64,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) format('woff2');
+    unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'GS Bangers';
+    src: url(data:font/woff2;base64,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) format('woff2');
+    unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'GS Dela';
+    src: url(data:font/woff2;base64,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) format('woff2');
+    font-display: block;
+  }
   .cover-title-block {
+    position: relative;
     text-align: center;
     margin-top: 6px;
+    isolation: isolate;
+  }
+  /* ロゴの後ろの爆発（ギザギザの吹き出し）。黒いふちの上に、網点入りの黄色を重ねる */
+  .cover-burst, .cover-burst::after {
+    position: absolute;
+    clip-path: polygon(50.0% 0.0%, 55.9% 16.5%, 67.1% 3.0%, 69.0% 17.1%, 82.1% 11.7%, 76.0% 28.1%, 93.3% 25.0%, 85.7% 37.0%, 99.2% 41.3%, 84.0% 50.0%, 99.2% 58.7%, 85.7% 63.0%, 93.3% 75.0%, 76.0% 71.9%, 82.1% 88.3%, 69.0% 82.9%, 67.1% 97.0%, 55.9% 83.5%, 50.0% 100.0%, 43.4% 87.4%, 32.9% 97.0%, 33.0% 79.4%, 17.9% 88.3%, 20.9% 74.4%, 6.7% 75.0%, 18.1% 61.6%, 0.8% 58.7%, 12.0% 50.0%, 0.8% 41.3%, 18.1% 38.4%, 6.7% 25.0%, 20.9% 25.6%, 17.9% 11.7%, 33.0% 20.6%, 32.9% 3.0%, 43.4% 12.6%);
+  }
+  .cover-burst {
+    left: 50%; top: 46%;
+    width: min(150%, 96vw); aspect-ratio: 1.7;
+    transform: translate(-50%, -50%) rotate(-6deg);
+    background: #050508;
+    z-index: -1;
+    animation: burstIn 0.45s cubic-bezier(.2,1.6,.4,1) both;
+  }
+  .cover-burst::after {
+    content: '';
+    inset: 3.5%;
+    background:
+      radial-gradient(circle, rgba(255, 42, 133, 0.45) 26%, transparent 28%) 0 0 / 11px 11px,
+      radial-gradient(circle at 50% 50%, #FFF7A0 0%, #FFE600 45%, #FF9E00 100%);
   }
   .cover-logo {
-    font-size: clamp(44px, 10vw, 96px);
-    background: linear-gradient(180deg, #FFF700 0%, #FF8A00 55%, #FF0033 100%);
+    margin: 0;
+    font-family: 'GS Bangers', 'Impact', 'Arial Black', sans-serif;
+    font-weight: 400;
+    font-size: clamp(64px, 16vw, 168px);
+    letter-spacing: 0.03em;
+    line-height: 0.84;
+    transform: skewX(-8deg) rotate(-4deg);
+    animation: logoIn 0.5s cubic-bezier(.2,1.7,.4,1) 0.05s both;
+  }
+  .logo-line {
+    display: block;
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFF200 30%, #FF8A00 62%, #FF1744 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
-    -webkit-text-stroke: 0.045em #050508;
-    filter: drop-shadow(0.08em 0.08em 0 #050508);
-    transform: skewX(-10deg) rotate(-2deg);
-    line-height: 0.95;
+    -webkit-text-stroke: 0.05em #050508;
+    paint-order: stroke fill;
+    /* 影を少しずつずらして重ね、立体的に飛び出して見せる */
+    filter:
+      drop-shadow(0.02em 0.02em 0 #050508) drop-shadow(0.02em 0.02em 0 #050508)
+      drop-shadow(0.02em 0.02em 0 #050508) drop-shadow(0.05em 0.05em 0 #FF2A85);
   }
+  .logo-line.l2 { font-size: 1.18em; margin-left: 0.35em; }
+  /* 日本語のロゴは片仮名。太い日本語書体で、少し小さめに組む */
+  .cover-logo.logo-ja {
+    font-family: 'GS Dela', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    font-size: clamp(34px, 7.4vw, 86px);
+    letter-spacing: -0.02em;
+    line-height: 1.02;
+  }
+  .cover-logo.logo-ja .logo-line.l2 { font-size: 1.22em; margin-left: 0.6em; }
+  /* ホーム左上の言語の選択欄（ほかの作品と同じ「language」の表記） */
+  .home-language {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #FFE600; color: #050508;
+    border: 3px solid #050508; box-shadow: 4px 4px 0 #050508;
+    padding: 2px 6px 2px 10px;
+    font-family: sans-serif; font-weight: 900; font-size: 13px;
+    transform: rotate(-2deg);
+  }
+  .home-language select {
+    font: 700 16px sans-serif; color: #050508; background: #FFFFFF;
+    border: 2px solid #050508; min-height: 36px; max-width: min(46vw, 190px);
+    cursor: pointer;
+  }
+  /* 日本語以外のキャッチコピーは、英字はアメコミ風の書体、それ以外は端末の太字で表示する */
+  html:not(:lang(ja)) .cover-tagline span { font-family: 'GS Bangers', 'Arial Black', sans-serif; letter-spacing: 0.03em; -webkit-text-stroke-width: 0.1em; }
   .cover-tagline {
-    font-size: clamp(14px, 2.3vw, 22px);
-    margin-top: 8px;
-    color: #00F0FF;
+    margin-top: 0.55em;
   }
+  .cover-tagline span {
+    display: inline-block;
+    font-family: 'GS Dela', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    font-size: clamp(16px, 2.9vw, 30px);
+    color: #FFFFFF;
+    background: #FF1744;
+    border: 4px solid #050508;
+    box-shadow: 6px 6px 0 #050508;
+    padding: 0.18em 0.7em 0.24em;
+    -webkit-text-stroke: 0.14em #050508;
+    paint-order: stroke fill;
+    transform: rotate(-3deg) skewX(-10deg);
+    animation: logoIn 0.45s cubic-bezier(.2,1.7,.4,1) 0.2s both;
+  }
+  @keyframes burstIn { from { transform: translate(-50%, -50%) rotate(-30deg) scale(0.2); } }
+  @keyframes logoIn { from { transform: skewX(-8deg) rotate(-4deg) scale(0.3); opacity: 0; } }
+  body.reduced-flash .cover-burst, body.reduced-flash .cover-logo, body.reduced-flash .cover-tagline span { animation: none; }
 
   .cover-center-actions {
     display: flex;
@@ -808,9 +1020,10 @@
     gap: 12px;
   }
   #play-btn {
-    font-family: var(--comic-font);
-    font-weight: 900;
-    font-style: italic;
+    font-family: 'GS Bangers', 'GS Dela', var(--comic-font);
+    letter-spacing: 0.05em;
+    font-weight: 400;
+    font-style: normal;
     font-size: clamp(28px, 5.2vw, 48px);
     padding: 12px 44px;
     background: linear-gradient(180deg, #FFE600, #FF6A00);
@@ -837,6 +1050,7 @@
   }
 
   .cover-bottom-row {
+    margin-bottom: 14px; /* 下にライセンス表記の場所を空ける */
     width: 100%;
     display: flex;
     justify-content: space-between;
@@ -999,9 +1213,12 @@
   }
   .result-headline {
     font-size: clamp(28px, 6vw, 54px);
+    font-weight: 900;
+    line-height: 1.15;
     color: #FF1744;
-    -webkit-text-stroke: 3px #050508;
-    text-shadow: 6px 6px 0 #050508;
+    -webkit-text-stroke: 4px #050508;
+    paint-order: stroke fill;
+    text-shadow: 4px 4px 0 #050508;
   }
   .result-stats-grid {
     display: grid;
@@ -1107,7 +1324,23 @@
   @media (max-height: 480px) { #prey-card { bottom: 64px; width: min(360px, 46vw); padding: 4px 10px; } #prey-card-flavor { font-size: 11px; } }
   @media (max-width: 720px) and (orientation: portrait) { #prey-card { bottom: auto; top: 26%; width: 78vw; } }
 
-  .credit-link { position: absolute; right: 18px; bottom: 6px; white-space: nowrap; font-family: sans-serif; font-size: 10px; color: #cfefff; text-decoration: underline; }
+  /* 全画面ボタンは、PCで全画面に対応しているブラウザでだけ出す */
+  .fs-btn { display: none; }
+  body.pc-ui.fs-ok .fs-btn { display: inline-block; }
+
+  /* PC：大きな画面に合わせて、表示や文字を拡大する（倍率 --ui は画面の大きさから計算） */
+  body.pc-ui .cover-top-row, body.pc-ui .cover-title-block, body.pc-ui .cover-center-actions,
+  body.pc-ui .cover-bottom-row, body.pc-ui .credit-link,
+  body.pc-ui #news-ticker-wrap, body.pc-ui #hud-tl, body.pc-ui #hud-tr, body.pc-ui #hud-bl, body.pc-ui #hud-br,
+  body.pc-ui #boss-hud, body.pc-ui #evo-top-notice, body.pc-ui #tap-bite-guide, body.pc-ui #gauge-tut-callout,
+  body.pc-ui #forced-evo-callout, body.pc-ui #prey-card, body.pc-ui #issue-caption, body.pc-ui #clear-banner,
+  body.pc-ui .story-panel, body.pc-ui #pause-overlay > *, body.pc-ui #cutin-main, body.pc-ui #cutin-sub,
+  body.pc-ui #evo-modal-inner, body.pc-ui #result-box {
+    zoom: var(--ui, 1);
+  }
+
+  .credit-link { position: absolute; right: 18px; bottom: 6px; white-space: nowrap; font-family: sans-serif; font-size: 10px; color: #cfefff; }
+  .credit-link a { color: #cfefff; text-decoration: underline; }
 
   #fatal-screen {
     position: fixed; inset: 0; z-index: 100;
@@ -1136,19 +1369,24 @@
     background: #FFFDF0; border-top: 4px solid #050508;
   }
   @media (max-height: 480px) {
-    .cover-logo { font-size: clamp(34px, 14vh, 64px); }
-    .cover-tagline { font-size: 13px; }
+    .cover-logo { font-size: clamp(40px, 17vh, 84px); }
+    .cover-tagline span { font-size: 13px; border-width: 3px; box-shadow: 4px 4px 0 #050508; }
+    .cover-burst { width: min(130%, 70vw); }
     #play-btn { font-size: 26px; padding: 6px 30px; border-width: 4px; box-shadow: 6px 6px 0 #050508; }
     .controls-tip { font-size: 10px; line-height: 1.35; }
     .comic-barcode { display: none; }
     #title-screen { padding-top: 10px; padding-bottom: 10px; }
     #result-box { padding: 10px 14px; gap: 6px; max-height: 94vh; }
-    .result-headline { font-size: 26px; text-shadow: 3px 3px 0 #050508; }
+    .result-headline { font-size: 26px; -webkit-text-stroke-width: 3px; text-shadow: 2px 2px 0 #050508; }
     .rank-stamp { font-size: 24px; padding: 2px 14px; margin: 0 auto; }
     .result-stats-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 2px 0; }
     .stat-cell { padding: 5px; box-shadow: 3px 3px 0 #050508; }
     .stat-cell-val { font-size: 15px; }
     .result-actions .act-btn { padding: 6px 12px; font-size: 13px; }
+  }
+  @media (max-width: 600px) and (orientation: portrait) {
+    .cover-logo { font-size: 20vw; }
+    .cover-burst { width: 104vw; }
   }
   @media (max-width: 480px) {
     .issue-stamp { font-size: 11px; padding: 5px 8px; }
@@ -1171,35 +1409,32 @@
   <!-- TITLE SCREEN (COMIC COVER) -->
   <div id="title-screen">
     <div class="cover-top-row">
-      <div class="issue-stamp">ISSUE #1 • 0.5m → 100,000 LY</div>
-      <div style="display:flex;gap:6px;">
-        <button id="title-skin-btn" class="comic-mini-btn">SKIN: STANDARD</button>
-        <button id="title-mute-btn" class="comic-mini-btn">音: ON</button>
+      <label class="home-language" for="home-language"><span id="home-language-label">language</span><select id="home-language" aria-label="language"></select></label>
+      <div class="cover-top-btns">
+        <button id="title-skin-btn" class="comic-mini-btn">スキン: 標準</button>
+        <button id="title-mute-btn" class="comic-mini-btn">音: 入</button>
         <button id="title-gfx-btn" class="comic-mini-btn" title="軽量：描画の負担を減らす（細かな部品の動きとふち取りを省く）">描画: 標準</button>
+        <button id="title-fullscreen-btn" class="comic-mini-btn fs-btn" title="全画面 (F)">⛶ 全画面</button>
       </div>
     </div>
 
     <div class="cover-title-block">
-      <div class="cover-logo">GALAXY<br>SHARK</div>
-      <div class="comic-text cover-tagline">食って、伸びて、銀河まで丸呑み!!</div>
+      <div class="cover-burst" aria-hidden="true"></div>
+      <h1 class="cover-logo logo-ja" id="cover-logo" aria-label="ギャラクシーシャーク"><span class="logo-line l1">ギャラクシー</span><span class="logo-line l2">シャーク</span></h1>
+      <div class="cover-tagline"><span>食って、伸びて、銀河まで丸呑み!!</span></div>
     </div>
 
     <div class="cover-center-actions">
-      <button id="play-btn">PLAY!!</button>
+      <button id="play-btn">スタート!!</button>
 
     </div>
 
     <div class="cover-bottom-row">
-      <div class="comic-text controls-tip">
-        左スティック / WASD：前後左右移動<br>
-        右縦スティック / ↑↓：上下（陸はジャンプ）<br>
-        画面タップ：噛みつき突進 ・ 右下：⚡ 進化
-      </div>
+      <div class="comic-text controls-tip"></div>
       <div class="comic-barcode">
         <div class="barcode-lines"></div>
-        <div class="barcode-num">SHARK-001</div>
       </div>
-      <a class="credit-link" href="vendor/three.LICENSE" target="_blank" rel="noopener">3D表示: three.js (MIT License)</a>
+      <div class="credit-link"><a href="vendor/three.LICENSE" target="_blank" rel="noopener">3D表示: three.js (MIT)</a> ・ <a href="vendor/fonts.LICENSE" target="_blank" rel="noopener">書体: Bangers, Dela Gothic One (OFL)</a></div>
     </div>
   </div>
 
@@ -1211,14 +1446,14 @@
 
   <!-- ISSUE NARRATION CAPTION -->
   <div id="issue-caption">
-    <div id="issue-title">ISSUE #1: DEEP BLUE HUNGER</div>
-    <div id="issue-sub">MEANWHILE, BENEATH THE WAVES...（深海の底、小さな食欲が目覚める…）</div>
+    <div id="issue-title"></div>
+    <div id="issue-sub"></div>
   </div>
 
   <!-- DIAGONAL COMIC CUT-IN -->
   <div id="cutin-banner">
-    <div id="cutin-main" class="comic-text">VS KRAKEN!!</div>
-    <div id="cutin-sub" class="comic-text">WARNING!! BOSS APPROACHING!!</div>
+    <div id="cutin-main" class="comic-text"></div>
+    <div id="cutin-sub" class="comic-text"></div>
   </div>
 
   <!-- IN-GAME FLOATING HUD (NO DARK BACKGROUNDS) -->
@@ -1229,38 +1464,39 @@
 
     <div id="hud-tl">
       <div id="hud-length" class="comic-text">0.50 m</div>
-      <div id="hud-phase" class="comic-text comic-text-cyan">PHASE 1 海洋 • STAGE 1</div>
+      <div id="hud-phase" class="comic-text comic-text-cyan"></div>
       <div id="hud-growth-bar-wrap"><div id="hud-growth-fill"></div><div id="hud-boss-mark" title="ここまで育つとボスが出現">☠</div></div>
       <div id="hud-damage-row">
         <span id="hud-wanted" class="comic-text"></span>
         <span id="hud-damage" class="comic-text"></span>
       </div>
-      <div id="hud-flood-badge" class="comic-text">🌊 都市水没バフ中! 速度1.35x 感電3倍!</div>
+      <div id="hud-flood-badge" class="comic-text">🌊 都市水没中! 速度1.35倍・感電3倍!</div>
     </div>
 
     <div id="boss-hud">
-      <div id="boss-name" class="comic-text">VS KRAKEN!!</div>
+      <div id="boss-name" class="comic-text"></div>
       <div id="boss-hp-outer"><div id="boss-hp-fill"></div></div>
-      <div id="boss-subinfo" class="comic-text">触手を噛みちぎれ!</div>
+      <div id="boss-subinfo" class="comic-text"></div>
     </div>
 
     <div id="hud-tr">
       <div id="top-btn-row">
         <button id="btn-pause" class="comic-mini-btn" title="一時停止 (ESC)">⏸</button>
         <button id="btn-mute" class="comic-mini-btn">🔊</button>
-        <button id="btn-menu" class="comic-mini-btn">⚙ MENU</button>
+        <button id="btn-fullscreen" class="comic-mini-btn fs-btn" title="全画面 (F)">⛶ 全画面</button>
+        <button id="btn-menu" class="comic-mini-btn">⚙ メニュー</button>
       </div>
       <div id="menu-drawer">
-        <button id="btn-skin" class="comic-mini-btn">SKIN: STD</button>
-        <button id="btn-stick" class="comic-mini-btn active-toggle">STICK: ON</button>
-        <button id="btn-24fps" class="comic-mini-btn">24FPS: OFF</button>
-        <button id="btn-flash" class="comic-mini-btn">点滅軽減: OFF</button>
+        <button id="btn-skin" class="comic-mini-btn">スキン: 標準</button>
+        <button id="btn-stick" class="comic-mini-btn active-toggle">スティック: 表示</button>
+        <button id="btn-24fps" class="comic-mini-btn">24コマ: 切</button>
+        <button id="btn-flash" class="comic-mini-btn">点滅軽減: 切</button>
         <button id="btn-shake" class="comic-mini-btn">揺れ: 強</button>
         <button id="btn-gfx" class="comic-mini-btn" title="軽量：描画の負担を減らす（細かな部品の動きとふち取りを省く）">描画: 標準</button>
-        <button id="btn-warp" class="comic-mini-btn" style="display:none;" title="次ステージ/成長テスト (L)">成長+ (L)</button>
+        <button id="btn-warp" data-no-i18n class="comic-mini-btn" style="display:none;" title="次ステージ/成長テスト (L)">成長+ (L)</button>
       </div>
-      <div id="hud-combo" class="comic-text">0 COMBO!</div>
-      <div id="hud-golden-alert" class="comic-text">★ GOLDEN!! ★</div>
+      <div id="hud-combo" class="comic-text"></div>
+      <div id="hud-golden-alert" class="comic-text">★ 金色レア出現!! ★</div>
     </div>
 
     <div id="touch-zone">
@@ -1278,41 +1514,37 @@
 
     <div id="hud-bl">
       <div class="gauge-row">
-        <div class="gauge-label comic-text comic-text-white"><span>HP</span><span id="hp-val">100/100</span></div>
+        <div class="gauge-label comic-text comic-text-white"><span>体力</span><span id="hp-val">100/100</span></div>
         <div class="gauge-track"><div id="hp-fill" class="gauge-fill"></div></div>
       </div>
     </div>
 
-    <div id="evo-top-notice" class="comic-text">⚡ 進化可能!!<br>右下の「進化」をタップ!! ⚡</div>
-    <div id="prey-card" aria-live="polite"><div id="prey-card-tag">NEW!! はじめて食べた</div><div id="prey-card-name"></div><div id="prey-card-flavor"></div></div>
-    <div id="tap-bite-guide">👆 画面タップで<br>サメが噛みつく!!</div>
+    <div id="evo-top-notice" class="comic-text" data-i18n-html>⚡ 進化可能!!<br>右下の「進化」をタップ!! ⚡</div>
+    <div id="prey-card" aria-live="polite"><div id="prey-card-tag">初めて食べた!!</div><div id="prey-card-name"></div><div id="prey-card-flavor"></div></div>
+    <div id="tap-bite-guide" data-i18n-html>👆 画面タップで<br>サメが噛みつく!!</div>
     <div id="clear-banner">
-      <div class="comic-text" style="font-size:clamp(30px,6.5vw,58px);color:#FFE600;">GALAXY CONQUERED!!</div>
-      <div class="comic-text comic-text-cyan" style="font-size:clamp(15px,2.8vw,24px);margin-top:6px;">天の川銀河制覇!!<br>宇宙はサメの海となった!!</div>
+      <div class="comic-text" style="font-size:clamp(30px,6.5vw,58px);color:#FFE600;">銀河制覇!!</div>
+      <div class="comic-text comic-text-cyan" data-i18n-html style="font-size:clamp(15px,2.8vw,24px);margin-top:6px;">天の川銀河制覇!!<br>宇宙はサメの海となった!!</div>
     </div>
     <div id="story-interlude">
       <div class="story-panel">
-        <div id="story-kicker">NEXT ISSUE!!</div>
-        <div id="story-title">PHASE TRANSITION!!</div>
-        <div id="story-desc">サメの進化は止まらない…！</div>
+        <div id="story-kicker"></div>
+        <div id="story-title"></div>
+        <div id="story-desc"></div>
       </div>
     </div>
     <div id="pause-overlay">
-      <div class="comic-text" style="font-size:44px;color:#FFE600;">PAUSED</div>
-      <div id="pause-controls" class="comic-text comic-text-white" style="font-size:14px;text-align:center;max-width:86vw;">
-        左スティック / WASD：前後左右移動<br>
-        右縦スティック / ↑↓：上下（陸はジャンプ）<br>
-        画面タップ：噛みつき突進 ・ 右下：⚡ 進化
-      </div>
-      <button id="btn-resume" class="act-btn" style="font-size:20px;padding:10px 28px;">再開する (ESC)</button>
+      <div class="comic-text" style="font-size:44px;color:#FFE600;">一時停止中</div>
+      <div id="pause-controls" class="comic-text comic-text-white" style="font-size:14px;text-align:center;max-width:86vw;"></div>
+      <button id="btn-resume" class="act-btn" style="font-size:20px;padding:10px 28px;">再開する（Escキー）</button>
       <button id="btn-pause-home" class="act-btn cyan" style="font-size:17px;padding:9px 24px;margin-top:6px;">🏠 タイトルへ戻る</button>
     </div>
-    <div id="gauge-tut-callout">▲ このゲージ＝成長メーター!!<br>満タンでステージUP、☠の印でボス出現!!<br><span style="color:#B8860B">▼黄</span>の獲物は噛めば丸呑み、<span style="color:#D50000">▼赤</span>は大きいので噛んで削れ!!</div>
+    <div id="gauge-tut-callout" data-i18n-html>▲ このゲージ＝成長メーター!!<br>満タンでステージアップ、☠の印でボス出現!!<br><span style="color:#B8860B">▼黄</span>の獲物は噛めば丸呑み、<span style="color:#D50000">▼赤</span>は大きいので噛んで削れ!!</div>
     <div id="forced-evo-backdrop"></div>
-    <div id="forced-evo-callout">⚡ 進化ポイント獲得!! ⚡<br>進化ptでサメを強化しよう！<br>下の「⚡ 進化」をタップして<br>1回目の進化を実行!! ▼</div>
+    <div id="forced-evo-callout" data-i18n-html>⚡ 進化ポイント獲得!! ⚡<br>進化ポイントでサメを強化しよう！<br>下の「⚡ 進化」をタップして<br>1回目の進化を実行!! ▼</div>
     <div id="hud-br">
       <div class="action-btn-grid">
-        <button id="evo-ready-btn" class="act-btn locked" style="min-width:128px;padding:13px 16px;font-size:16px;">⚡ 進化 (0pt)</button>
+        <button id="evo-ready-btn" class="act-btn locked" style="min-width:128px;padding:13px 16px;font-size:16px;"></button>
       </div>
     </div>
   </div>
@@ -1320,26 +1552,26 @@
   <!-- EVOLUTION 3-PANEL COMIC MODAL -->
   <div id="evo-modal" class="comic-modal-backdrop">
     <div id="evo-modal-inner">
-      <div class="comic-text" style="font-size:clamp(24px,4.5vw,42px);color:#FFE600;">⚡ EVOLUTION SELECT!! ⚡</div>
-      <div id="evo-pts-label" class="comic-text comic-text-cyan" style="font-size:18px;">進化ポイント: 1</div>
+      <div class="comic-text" style="font-size:clamp(24px,4.5vw,42px);color:#FFE600;">⚡ 進化を選べ!! ⚡</div>
+      <div id="evo-pts-label" class="comic-text comic-text-cyan" style="font-size:18px;"></div>
       <div id="evo-cards" class="evo-cards-grid"></div>
-      <button id="evo-close-btn" class="comic-mini-btn" style="font-size:16px;padding:8px 20px;">あとで選ぶ (ESC)</button>
+      <button id="evo-close-btn" class="comic-mini-btn" style="font-size:16px;padding:8px 20px;">あとで選ぶ（Escキー）</button>
     </div>
   </div>
 
   <!-- CLEAR / GAME OVER RESULT SCREEN -->
   <div id="result-modal" class="comic-modal-backdrop">
     <div id="result-box">
-      <div id="result-headline" class="result-headline">THE END... OR IS IT?!</div>
+      <div id="result-headline" class="result-headline"></div>
       <div id="result-sub" style="font-weight:900;font-size:16px;">天の川銀河を制覇!! 宇宙はサメの海となった!!</div>
-      <div id="result-rank" class="rank-stamp">S RANK!!</div>
+      <div id="result-rank" class="rank-stamp"></div>
       <div class="result-stats-grid">
-        <div class="stat-cell" style="grid-column:span 2;background:linear-gradient(90deg,#FFE600,#FF9E00);"><div class="stat-cell-label">総合スコア (TOTAL SCORE)</div><div id="res-score" class="stat-cell-val" style="font-size:clamp(24px,4.5vw,34px);">0 pt</div></div>
+        <div class="stat-cell" style="grid-column:span 2;background:linear-gradient(90deg,#FFE600,#FF9E00);"><div class="stat-cell-label">総合スコア</div><div id="res-score" class="stat-cell-val" style="font-size:clamp(24px,4.5vw,34px);"></div></div>
         <div class="stat-cell"><div id="res-time-label" class="stat-cell-label">クリアタイム</div><div id="res-time" class="stat-cell-val">00:00</div></div>
-        <div class="stat-cell"><div class="stat-cell-label">最終体長</div><div id="res-len" class="stat-cell-val">100,000 光年</div></div>
+        <div class="stat-cell"><div class="stat-cell-label">最終体長</div><div id="res-len" class="stat-cell-val"></div></div>
         <div class="stat-cell"><div class="stat-cell-label">総捕食質量</div><div id="res-mass" class="stat-cell-val">0 t</div></div>
         <div class="stat-cell"><div class="stat-cell-label">推定被害総額</div><div id="res-yen" class="stat-cell-val">0 円</div></div>
-        <div class="stat-cell" style="grid-column:span 2;"><div class="stat-cell-label">捕食数 / 最大コンボ</div><div id="res-combo" class="stat-cell-val">0体 • 0 COMBO</div></div>
+        <div class="stat-cell" style="grid-column:span 2;"><div class="stat-cell-label">捕食数 / 最大コンボ</div><div id="res-combo" class="stat-cell-val"></div></div>
         <div class="stat-cell" style="grid-column:span 2;"><div class="stat-cell-label">腕前</div><div id="res-skill" class="stat-cell-val" style="font-size:clamp(13px,2.2vw,18px);">—</div></div>
       </div>
       <div class="result-actions">
@@ -1363,13 +1595,37 @@
   window.__showFatal = (msg) => {
     const el = document.getElementById('fatal-screen');
     if (!el) return;
-    if (msg) document.getElementById('fatal-msg').textContent = msg;
+    if (msg) document.getElementById('fatal-msg').textContent = window.GS_I18N ? window.GS_I18N.t(msg) : msg;
     el.hidden = false;
   };
 </script>
 <script>
 (() => {
   'use strict';
+  // 翻訳：日本語の文章をそのまま見出しにして、選んだ言語の文章を引く（{0} などは値に置き換える）
+  const tx = (src, ...vals) => (window.GS_I18N ? window.GS_I18N.t(src, ...vals) : String(src).replace(/\{(\d+)\}/g, (m, i) => vals[+i] ?? m));
+  // 画面の部品を選んだ言語にし、ホーム左上の「language」欄を用意する（3D表示が使えなくても動くよう、最初に行う）
+  (() => {
+    const I = window.GS_I18N;
+    if (!I) return;
+    I.localize(document.body);
+    if (I.lang !== 'ja') {
+      document.title = tx('ギャラクシーシャーク — アメコミ調3Dサメ巨大化捕食アクション');
+      const logo = document.getElementById('cover-logo');
+      logo.classList.remove('logo-ja');
+      logo.setAttribute('aria-label', 'GALAXY SHARK');
+      logo.querySelector('.l1').textContent = 'GALAXY';
+      logo.querySelector('.l2').textContent = 'SHARK';
+    }
+    const sel = document.getElementById('home-language');
+    for (const l of I.languages) {
+      const o = new Option(l.name, l.id);
+      o.lang = l.locale;
+      sel.add(o);
+    }
+    sel.value = I.lang;
+    sel.addEventListener('change', () => I.setLanguage(sel.value));
+  })();
   if (!window.THREE) {
     window.__showFatal('3D 表示に必要な部品（Three.js）を読み込めませんでした。');
     return;
@@ -1393,9 +1649,9 @@
   // 操作の説明を出し分けるための判定（マウスなどの細かく指せる入力があるか）
   const HAS_FINE_POINTER = !!(window.matchMedia && window.matchMedia('(any-pointer: fine)').matches);
   const TOUCH_UI = IS_TOUCH && !(window.matchMedia && window.matchMedia('(pointer: fine)').matches);
-  const CONTROLS_HTML = TOUCH_UI
+  const CONTROLS_HTML_SRC = TOUCH_UI
     ? '左スティック：前進・後退・向きを変える<br>右の縦スティック：上下（陸ではジャンプ）<br>画面タップ：噛みつき突進 ・ 右下の ⚡進化：サメを強化'
-    : 'W / S：前進・後退　A / D・← →：向きを変える<br>↑ / ↓：上下（陸ではジャンプ）　スペース・クリック：噛みつき突進<br>V：進化　Esc：一時停止　右ボタンを押しながらマウス：舵を取る';
+    : 'W / S：前進・後退　A / D・← →：向きを変える<br>↑ / ↓：上下（陸ではジャンプ）　スペース・クリック：噛みつき突進<br>V：進化　Esc：一時停止　F：全画面　右ボタンを押しながらマウス：舵を取る';
 
   // 大きさの単位の切り替え。どの段も10倍前後に収めて、見た目の成長が途中で止まらないようにする
   const UNIT_METERS = [0.5, 5.0, 50.0, 500.0, 8000.0, 100000.0, 1500000.0, 15000000.0, 150000000.0, 9.461e15];
@@ -1421,36 +1677,36 @@
 
   const PHASE_INFO = {
     1: {
-      name: 'PHASE 1 海洋', issue: 'ISSUE #1: DEEP BLUE HUNGER',
-      sub: 'MEANWHILE, BENEATH THE WAVES...（深海の底、小さな食欲が目覚める…）',
+      name: 'フェーズ1 海洋', issue: '第1話：深海の飢え',
+      sub: '深海の底で、小さな食欲が目覚める…',
       bgTop: 0x0066cc, bgBot: 0x021b38, fogColor: 0x033e6b, fogDensity: 0.011,
       dirColor: 0x7ce0ff, dirInt: 1.35, hemiSky: 0x44c8ff, hemiGnd: 0x001830,
       rimColor: new THREE.Color(0x00f0ff)
     },
     2: {
-      name: 'PHASE 2 地上・都市', issue: 'ISSUE #2: CONCRETE CRUNCH!',
-      sub: 'SECONDS LATER — IN DOWNTOWN TOKYO...（数秒後、都心はパニックに包まれた…）',
+      name: 'フェーズ2 地上・都市', issue: '第2話：コンクリートを丸かじり!',
+      sub: '数秒後、都心はパニックに包まれた…',
       bgTop: 0x22aaff, bgBot: 0xcbeeff, fogColor: 0x9fd8ff, fogDensity: 0.0042,
       dirColor: 0xfff6e0, dirInt: 1.75, hemiSky: 0x88ccff, hemiGnd: 0x3b2c4a,
       rimColor: new THREE.Color(0xffe600)
     },
     3: {
-      name: 'PHASE 3 大気圏', issue: 'ISSUE #3: SKY BREAKER!',
-      sub: 'HIGHER THAN ANY JAWS HAVE GONE...（重力など、この顎には通用しない…）',
+      name: 'フェーズ3 大気圏', issue: '第3話：空を食い破れ!',
+      sub: '重力など、この顎には通用しない…',
       bgTop: 0x0d1b6e, bgBot: 0xff6fa8, fogColor: 0x4a6cd4, fogDensity: 0.0024,
       dirColor: 0xffffff, dirInt: 1.45, hemiSky: 0x3366cc, hemiGnd: 0xffcce6,
       rimColor: new THREE.Color(0xff2a85)
     },
     4: {
-      name: 'PHASE 4 宇宙・太陽系', issue: 'ISSUE #4: SOLAR EATER!',
-      sub: 'BEYOND THE ATMOSPHERE...（大気圏の向こう側、星々が震え始めた…）',
+      name: 'フェーズ4 宇宙・太陽系', issue: '第4話：太陽を喰らう者!',
+      sub: '大気圏の向こう側で、星々が震え始めた…',
       bgTop: 0x04020c, bgBot: 0x090420, fogColor: 0x04020c, fogDensity: 0.0002,
       dirColor: 0xfff0d0, dirInt: 1.25, hemiSky: 0x2a2458, hemiGnd: 0x080614,
       rimColor: new THREE.Color(0xffd700)
     },
     5: {
-      name: 'PHASE 5 銀河', issue: 'FINAL ISSUE: MILKY WAY GOD',
-      sub: 'AT THE EDGE OF ETERNITY...（そして宇宙は、サメの海となる…）',
+      name: 'フェーズ5 銀河', issue: '最終話：天の川の神',
+      sub: 'そして宇宙は、サメの海となる…',
       bgTop: 0x0a0222, bgBot: 0x260538, fogColor: 0x0a0222, fogDensity: 0.0001,
       dirColor: 0xff88ff, dirInt: 1.8, hemiSky: 0xff2a85, hemiGnd: 0x00f0ff,
       rimColor: new THREE.Color(0x00f0ff)
@@ -1460,59 +1716,59 @@
   // All 45 Species Master Data (35 normal/boss + 6 gimmicks + 4 golden rare)
   const PREY_CATALOG = [
     // Phase 1 (9 + 1 gimmick + 1 golden)
-    { id:'sardine', nameJa:'イワシの群れ', phase:1, minStage:1, maxStage:3, category:'ORGANIC', realSizeMeters:0.28, hp:10, damageToShark:0, isHostile:false, damageValueYen:0, massTons:0.002, frenzyGain:3, gimmick:'NONE', color:0xffb703, onomatopoeia:['CHOMP!','パクッ!','SNAP!'], flavor:'すべての伝説はここから始まった。銀色のスナック感覚。', ai:'BOIDS', shape:'fish' },
-    { id:'turtle', nameJa:'ウミガメ', phase:1, minStage:1, maxStage:3, category:'ORGANIC', realSizeMeters:0.85, hp:20, damageToShark:0, isHostile:false, damageValueYen:0, massTons:0.12, frenzyGain:5, gimmick:'NONE', color:0x2ecc71, onomatopoeia:['パキッ!','CRUNCH!'], flavor:'甲羅の歯ごたえがクセになる、海のカルシウム源。', ai:'FLEE', shape:'turtle' },
-    { id:'tuna', nameJa:'マグロ / カジキ', phase:1, minStage:2, maxStage:4, category:'ORGANIC', realSizeMeters:2.2, hp:30, damageToShark:4, isHostile:false, damageValueYen:500000, massTons:0.35, frenzyGain:6, gimmick:'NONE', color:0x1b5299, onomatopoeia:['ZAP!','ガブッ!'], flavor:'時速80kmで逃げる高級魚。角がちょっと歯に刺さる。', ai:'FLEE', shape:'fish' },
-    { id:'rival_shark', nameJa:'ライバル大型サメ', phase:1, minStage:2, maxStage:4, category:'ORGANIC', realSizeMeters:4.5, hp:50, damageToShark:12, isHostile:true, damageValueYen:0, massTons:1.2, frenzyGain:12, gimmick:'NONE', color:0x525c68, onomatopoeia:['CHOMP!!','ガリッ!!'], flavor:'序盤の恐怖。逆転して噛み砕く瞬間こそ至高。', ai:'HUNTER', shape:'rival' },
-    { id:'orca', nameJa:'凶暴なシャチ', phase:1, minStage:3, maxStage:4, category:'ORGANIC', realSizeMeters:8.5, hp:68, damageToShark:15, isHostile:true, damageValueYen:0, massTons:6.5, frenzyGain:16, gimmick:'NONE', color:0x0b0e14, onomatopoeia:['COUNTER CHOMP!!','ガブッ!!'], flavor:'海の殺し屋。群れで襲いかかる突進を正面噛みつきで撃退せよ！', ai:'HUNTER', shape:'orca' },
-    { id:'whale', nameJa:'マッコウクジラ', phase:1, minStage:3, maxStage:4, category:'ORGANIC', realSizeMeters:18.5, hp:115, damageToShark:14, isHostile:true, damageValueYen:0, massTons:58, frenzyGain:18, gimmick:'NONE', color:0x2c4257, onomatopoeia:['GULP!!','ドゴン!!'], flavor:'ダイオウイカの吸盤傷を纏う海の巨獣。尾ビレ衝撃波を噛みつきで止めろ！', ai:'WHALE', shape:'whale' },
-    { id:'mine', nameJa:'機雷', phase:1, minStage:3, maxStage:4, category:'MECHANICAL', realSizeMeters:3.2, hp:25, damageToShark:16, isHostile:true, damageValueYen:5000000, massTons:0.9, frenzyGain:10, gimmick:'NONE', color:0x3e444c, onomatopoeia:['ボフッ!','BOOM!'], flavor:'爆発するトゲ鉄球。大きくなれば口内で弾けるパチパチキャンディ。', ai:'FLOAT', shape:'mine' },
-    { id:'whaler', nameJa:'捕鯨船 / 漁船', phase:1, minStage:3, maxStage:4, category:'MECHANICAL', realSizeMeters:11.0, hp:70, damageToShark:12, isHostile:true, damageValueYen:80000000, massTons:180, frenzyGain:12, gimmick:'NONE', color:0xd64545, onomatopoeia:['CRACK!!','バキッ!!'], flavor:'銛を撃ってくる厄介者。船体ごと真っ二つが礼儀。', ai:'HUNTER', shape:'ship' },
-    { id:'submarine', nameJa:'潜水艦', phase:1, minStage:4, maxStage:4, category:'MECHANICAL', realSizeMeters:22.0, hp:100, damageToShark:15, isHostile:true, damageValueYen:50000000000, massTons:2800, frenzyGain:16, gimmick:'NONE', color:0x27313d, onomatopoeia:['METAL CRUNCH!!','ガキン!!'], flavor:'鉄の葉巻。ソナー音が聞こえたらディナーの合図。', ai:'HUNTER', shape:'sub' },
-    { id:'boss_kraken', nameJa:'クラーケン（ボス）', phase:1, minStage:4, maxStage:4, category:'ORGANIC', realSizeMeters:42.0, hp:1150, damageToShark:18, isHostile:true, damageValueYen:1000000000, massTons:9500, frenzyGain:40, gimmick:'NONE', color:0x8a1c54, onomatopoeia:['GIGA CHOMP!!'], flavor:'8本足の深海王。触手は1本ずつ味わうのが通の食べ方。', ai:'BOSS', shape:'boss', isBoss:true },
-    { id:'vent', nameJa:'海底熱水噴出孔', phase:1, minStage:2, maxStage:4, category:'GIMMICK', realSizeMeters:3.0, hp:20, damageToShark:0, isHostile:false, damageValueYen:0, massTons:10, frenzyGain:15, gimmick:'HYDROTHERMAL_VENT', color:0xff5500, onomatopoeia:['ドゴォン!!','BOIL!!'], flavor:'噛むと周囲の魚が勝手に浮いてくる便利な調理器具。', ai:'STATIC', shape:'vent' },
-    { id:'gold_tuna', nameJa:'黄金のマグロ', phase:1, minStage:1, maxStage:4, category:'GOLDEN_RARE', realSizeMeters:1.2, hp:15, damageToShark:0, isHostile:false, damageValueYen:100000000, massTons:0.5, frenzyGain:100, gimmick:'NONE', isGoldenRare:true, color:0xffd700, onomatopoeia:['JACKPOT!!!'], flavor:'見つけたら最優先で追え！暴走確定の幻の魚。', ai:'GOLDEN', shape:'fish' },
+    { id:'sardine', nameJa:'イワシの群れ', phase:1, minStage:1, maxStage:3, category:'ORGANIC', realSizeMeters:0.28, hp:10, damageToShark:0, isHostile:false, damageValueYen:0, massTons:0.002, frenzyGain:3, gimmick:'NONE', color:0xffb703, onomatopoeia:['ガブッ!','パクッ!','パチン!'], flavor:'すべての伝説はここから始まった。銀色のスナック感覚。', ai:'BOIDS', shape:'fish' },
+    { id:'turtle', nameJa:'ウミガメ', phase:1, minStage:1, maxStage:3, category:'ORGANIC', realSizeMeters:0.85, hp:20, damageToShark:0, isHostile:false, damageValueYen:0, massTons:0.12, frenzyGain:5, gimmick:'NONE', color:0x2ecc71, onomatopoeia:['パキッ!','バリッ!'], flavor:'甲羅の歯ごたえがクセになる、海のカルシウム源。', ai:'FLEE', shape:'turtle' },
+    { id:'tuna', nameJa:'マグロ / カジキ', phase:1, minStage:2, maxStage:4, category:'ORGANIC', realSizeMeters:2.2, hp:30, damageToShark:4, isHostile:false, damageValueYen:500000, massTons:0.35, frenzyGain:6, gimmick:'NONE', color:0x1b5299, onomatopoeia:['ビリッ!','ガブッ!'], flavor:'時速80kmで逃げる高級魚。角がちょっと歯に刺さる。', ai:'FLEE', shape:'fish' },
+    { id:'rival_shark', nameJa:'ライバル大型サメ', phase:1, minStage:2, maxStage:4, category:'ORGANIC', realSizeMeters:4.5, hp:50, damageToShark:12, isHostile:true, damageValueYen:0, massTons:1.2, frenzyGain:12, gimmick:'NONE', color:0x525c68, onomatopoeia:['ガブッ!!','ガリッ!!'], flavor:'序盤の恐怖。逆転して噛み砕く瞬間こそ至高。', ai:'HUNTER', shape:'rival' },
+    { id:'orca', nameJa:'凶暴なシャチ', phase:1, minStage:3, maxStage:4, category:'ORGANIC', realSizeMeters:8.5, hp:68, damageToShark:15, isHostile:true, damageValueYen:0, massTons:6.5, frenzyGain:16, gimmick:'NONE', color:0x0b0e14, onomatopoeia:['返り討ち!!','ガブッ!!'], flavor:'海の殺し屋。群れで襲いかかる突進を正面噛みつきで撃退せよ！', ai:'HUNTER', shape:'orca' },
+    { id:'whale', nameJa:'マッコウクジラ', phase:1, minStage:3, maxStage:4, category:'ORGANIC', realSizeMeters:18.5, hp:115, damageToShark:14, isHostile:true, damageValueYen:0, massTons:58, frenzyGain:18, gimmick:'NONE', color:0x2c4257, onomatopoeia:['ゴクン!!','ドゴン!!'], flavor:'ダイオウイカの吸盤傷を纏う海の巨獣。尾ビレ衝撃波を噛みつきで止めろ！', ai:'WHALE', shape:'whale' },
+    { id:'mine', nameJa:'機雷', phase:1, minStage:3, maxStage:4, category:'MECHANICAL', realSizeMeters:3.2, hp:25, damageToShark:16, isHostile:true, damageValueYen:5000000, massTons:0.9, frenzyGain:10, gimmick:'NONE', color:0x3e444c, onomatopoeia:['ボフッ!','ドカン!'], flavor:'爆発するトゲ鉄球。大きくなれば口内で弾けるパチパチキャンディ。', ai:'FLOAT', shape:'mine' },
+    { id:'whaler', nameJa:'捕鯨船 / 漁船', phase:1, minStage:3, maxStage:4, category:'MECHANICAL', realSizeMeters:11.0, hp:70, damageToShark:12, isHostile:true, damageValueYen:80000000, massTons:180, frenzyGain:12, gimmick:'NONE', color:0xd64545, onomatopoeia:['メキッ!!','バキッ!!'], flavor:'銛を撃ってくる厄介者。船体ごと真っ二つが礼儀。', ai:'HUNTER', shape:'ship' },
+    { id:'submarine', nameJa:'潜水艦', phase:1, minStage:4, maxStage:4, category:'MECHANICAL', realSizeMeters:22.0, hp:100, damageToShark:15, isHostile:true, damageValueYen:50000000000, massTons:2800, frenzyGain:16, gimmick:'NONE', color:0x27313d, onomatopoeia:['ガキィン!!','ガキン!!'], flavor:'鉄の葉巻。ソナー音が聞こえたらディナーの合図。', ai:'HUNTER', shape:'sub' },
+    { id:'boss_kraken', nameJa:'クラーケン（ボス）', phase:1, minStage:4, maxStage:4, category:'ORGANIC', realSizeMeters:42.0, hp:1150, damageToShark:18, isHostile:true, damageValueYen:1000000000, massTons:9500, frenzyGain:40, gimmick:'NONE', color:0x8a1c54, onomatopoeia:['ギガガブッ!!'], flavor:'8本足の深海王。触手は1本ずつ味わうのが通の食べ方。', ai:'BOSS', shape:'boss', isBoss:true },
+    { id:'vent', nameJa:'海底熱水噴出孔', phase:1, minStage:2, maxStage:4, category:'GIMMICK', realSizeMeters:3.0, hp:20, damageToShark:0, isHostile:false, damageValueYen:0, massTons:10, frenzyGain:15, gimmick:'HYDROTHERMAL_VENT', color:0xff5500, onomatopoeia:['ドゴォン!!','ボコボコ!!'], flavor:'噛むと周囲の魚が勝手に浮いてくる便利な調理器具。', ai:'STATIC', shape:'vent' },
+    { id:'gold_tuna', nameJa:'黄金のマグロ', phase:1, minStage:1, maxStage:4, category:'GOLDEN_RARE', realSizeMeters:1.2, hp:15, damageToShark:0, isHostile:false, damageValueYen:100000000, massTons:0.5, frenzyGain:100, gimmick:'NONE', isGoldenRare:true, color:0xffd700, onomatopoeia:['大当たり!!!'], flavor:'見つけたら最優先で追え！暴走確定の幻の魚。', ai:'GOLDEN', shape:'fish' },
 
     // Phase 2 (7 + 3 gimmicks + 1 golden)
-    { id:'citizen', nameJa:'市民 / 警官', phase:2, minStage:5, maxStage:6, category:'ORGANIC', realSizeMeters:18.0, hp:10, damageToShark:2, isHostile:false, damageValueYen:500000, massTons:0.1, frenzyGain:3, gimmick:'NONE', color:0xff9f43, onomatopoeia:['パクッ!','GULP!'], flavor:'地上進出の第一口。逃げ足だけは速い。', ai:'BOIDS', shape:'human' },
-    { id:'car', nameJa:'乗用車 / パトカー', phase:2, minStage:5, maxStage:7, category:'MECHANICAL', realSizeMeters:28.0, hp:25, damageToShark:8, isHostile:true, damageValueYen:3500000, massTons:2.2, frenzyGain:6, gimmick:'NONE', color:0xff3b30, onomatopoeia:['CRUNCH!','ガリッ!'], flavor:'カリカリのボディと弾け飛ぶタイヤ。サイレンは食前のベル。', ai:'HUNTER', shape:'car' },
-    { id:'house', nameJa:'住宅 / 店舗', phase:2, minStage:5, maxStage:7, category:'STRUCTURE', realSizeMeters:38.0, hp:40, damageToShark:0, isHostile:false, damageValueYen:45000000, massTons:85, frenzyGain:7, gimmick:'NONE', color:0xffe4b5, onomatopoeia:['SMASH!','バリッ!'], flavor:'瓦屋根がサクサク。街区ごとまとめてどうぞ。', ai:'STATIC', shape:'house' },
-    { id:'train', nameJa:'電車 / 新幹線', phase:2, minStage:6, maxStage:7, category:'MECHANICAL', realSizeMeters:78.0, hp:65, damageToShark:10, isHostile:false, damageValueYen:3000000000, massTons:420, frenzyGain:14, gimmick:'NONE', color:0x0088ff, onomatopoeia:['ガブガブ!!','CHOO-CHOMP!'], flavor:'先頭から順に噛み砕く爽快感は、まさに動く回転寿司。', ai:'FLEE', shape:'train' },
-    { id:'skyscraper', nameJa:'高層ビル / タワー', phase:2, minStage:6, maxStage:7, category:'STRUCTURE', realSizeMeters:155.0, hp:110, damageToShark:0, isHostile:false, damageValueYen:80000000000, massTons:45000, frenzyGain:16, gimmick:'NONE', color:0x4aa3df, onomatopoeia:['CRASH!!','ドガァン!!'], flavor:'根元をかじって倒してから食べるのがプロの作法。', ai:'STATIC', shape:'building' },
-    { id:'tank', nameJa:'戦車', phase:2, minStage:6, maxStage:7, category:'MECHANICAL', realSizeMeters:62.0, hp:70, damageToShark:16, isHostile:true, damageValueYen:1000000000, massTons:55, frenzyGain:14, gimmick:'NONE', color:0x556b2f, onomatopoeia:['KABOOM!!','ガキン!!'], flavor:'硬い装甲と反撃砲塔。砲塔が飛ぶ音がたまらない。', ai:'HUNTER', shape:'tank' },
-    { id:'boss_robo', nameJa:'巨大ロボ（ボス）', phase:2, minStage:7, maxStage:7, category:'MECHANICAL', realSizeMeters:420.0, hp:1550, damageToShark:22, isHostile:true, damageValueYen:50000000000000, massTons:180000, frenzyGain:50, gimmick:'NONE', color:0xe0e8f0, onomatopoeia:['METAL CRUNCH!!!'], flavor:'人類の英知の結晶。胸部コアは絶品のエネルギー源。', ai:'BOSS', shape:'boss', isBoss:true },
-    { id:'gas_station', nameJa:'ガソリンスタンド', phase:2, minStage:5, maxStage:7, category:'GIMMICK', realSizeMeters:35.0, hp:20, damageToShark:0, isHostile:false, damageValueYen:200000000, massTons:120, frenzyGain:18, gimmick:'FUEL_EXPLOSION', color:0xff1744, onomatopoeia:['BOOOOM!!!'], flavor:'一口で街区ごと吹き飛ぶ激辛スパイシー物件。', ai:'STATIC', shape:'gas' },
-    { id:'power_plant', nameJa:'都市発電所', phase:2, minStage:6, maxStage:7, category:'GIMMICK', realSizeMeters:85.0, hp:45, damageToShark:0, isHostile:false, damageValueYen:25000000000, massTons:3000, frenzyGain:22, gimmick:'POWER_SHOCK', color:0x00f0ff, onomatopoeia:['バリバリッ!!','ZAP!!'], flavor:'ビリビリ痺れる刺激物。水没都市で食べると効果3倍。', ai:'STATIC', shape:'power' },
-    { id:'giant_dam', nameJa:'巨大ダム', phase:2, minStage:6, maxStage:7, category:'GIMMICK', realSizeMeters:100.0, hp:60, damageToShark:0, isHostile:false, damageValueYen:100000000000, massTons:120000, frenzyGain:28, gimmick:'DAM_FLOOD', color:0x88b8d8, onomatopoeia:['ザバァァァン!!','FLOOD!!'], flavor:'壊せば街がプールに早変わり。陸のサメ歓喜。', ai:'STATIC', shape:'dam' },
-    { id:'gold_car', nameJa:'黄金のスポーツカー', phase:2, minStage:5, maxStage:7, category:'GOLDEN_RARE', realSizeMeters:32.0, hp:15, damageToShark:0, isHostile:false, damageValueYen:500000000000, massTons:2, frenzyGain:100, gimmick:'NONE', isGoldenRare:true, color:0xffd700, onomatopoeia:['GOLD RUSH!!!'], flavor:'1台5,000億円の超高級車。ドリフトごと丸呑み。', ai:'GOLDEN', shape:'car' },
+    { id:'citizen', nameJa:'市民 / 警官', phase:2, minStage:5, maxStage:6, category:'ORGANIC', realSizeMeters:18.0, hp:10, damageToShark:2, isHostile:false, damageValueYen:500000, massTons:0.1, frenzyGain:3, gimmick:'NONE', color:0xff9f43, onomatopoeia:['パクッ!','ゴクン!'], flavor:'地上進出の第一口。逃げ足だけは速い。', ai:'BOIDS', shape:'human' },
+    { id:'car', nameJa:'乗用車 / パトカー', phase:2, minStage:5, maxStage:7, category:'MECHANICAL', realSizeMeters:28.0, hp:25, damageToShark:8, isHostile:true, damageValueYen:3500000, massTons:2.2, frenzyGain:6, gimmick:'NONE', color:0xff3b30, onomatopoeia:['バリッ!','ガリッ!'], flavor:'カリカリのボディと弾け飛ぶタイヤ。サイレンは食前のベル。', ai:'HUNTER', shape:'car' },
+    { id:'house', nameJa:'住宅 / 店舗', phase:2, minStage:5, maxStage:7, category:'STRUCTURE', realSizeMeters:38.0, hp:40, damageToShark:0, isHostile:false, damageValueYen:45000000, massTons:85, frenzyGain:7, gimmick:'NONE', color:0xffe4b5, onomatopoeia:['グシャッ!','バリッ!'], flavor:'瓦屋根がサクサク。街区ごとまとめてどうぞ。', ai:'STATIC', shape:'house' },
+    { id:'train', nameJa:'電車 / 新幹線', phase:2, minStage:6, maxStage:7, category:'MECHANICAL', realSizeMeters:78.0, hp:65, damageToShark:10, isHostile:false, damageValueYen:3000000000, massTons:420, frenzyGain:14, gimmick:'NONE', color:0x0088ff, onomatopoeia:['ガブガブ!!','ガタンゴトン!'], flavor:'先頭から順に噛み砕く爽快感は、まさに動く回転寿司。', ai:'FLEE', shape:'train' },
+    { id:'skyscraper', nameJa:'高層ビル / タワー', phase:2, minStage:6, maxStage:7, category:'STRUCTURE', realSizeMeters:155.0, hp:110, damageToShark:0, isHostile:false, damageValueYen:80000000000, massTons:45000, frenzyGain:16, gimmick:'NONE', color:0x4aa3df, onomatopoeia:['ガシャーン!!','ドガァン!!'], flavor:'根元をかじって倒してから食べるのがプロの作法。', ai:'STATIC', shape:'building' },
+    { id:'tank', nameJa:'戦車', phase:2, minStage:6, maxStage:7, category:'MECHANICAL', realSizeMeters:62.0, hp:70, damageToShark:16, isHostile:true, damageValueYen:1000000000, massTons:55, frenzyGain:14, gimmick:'NONE', color:0x556b2f, onomatopoeia:['ドカーン!!','ガキン!!'], flavor:'硬い装甲と反撃砲塔。砲塔が飛ぶ音がたまらない。', ai:'HUNTER', shape:'tank' },
+    { id:'boss_robo', nameJa:'巨大ロボ（ボス）', phase:2, minStage:7, maxStage:7, category:'MECHANICAL', realSizeMeters:420.0, hp:1550, damageToShark:22, isHostile:true, damageValueYen:50000000000000, massTons:180000, frenzyGain:50, gimmick:'NONE', color:0xe0e8f0, onomatopoeia:['ガキィィン!!!'], flavor:'人類の英知の結晶。胸部コアは絶品のエネルギー源。', ai:'BOSS', shape:'boss', isBoss:true },
+    { id:'gas_station', nameJa:'ガソリンスタンド', phase:2, minStage:5, maxStage:7, category:'GIMMICK', realSizeMeters:35.0, hp:20, damageToShark:0, isHostile:false, damageValueYen:200000000, massTons:120, frenzyGain:18, gimmick:'FUEL_EXPLOSION', color:0xff1744, onomatopoeia:['ドッカーン!!!'], flavor:'一口で街区ごと吹き飛ぶ激辛スパイシー物件。', ai:'STATIC', shape:'gas' },
+    { id:'power_plant', nameJa:'都市発電所', phase:2, minStage:6, maxStage:7, category:'GIMMICK', realSizeMeters:85.0, hp:45, damageToShark:0, isHostile:false, damageValueYen:25000000000, massTons:3000, frenzyGain:22, gimmick:'POWER_SHOCK', color:0x00f0ff, onomatopoeia:['バリバリッ!!','ビリビリ!!'], flavor:'ビリビリ痺れる刺激物。水没都市で食べると効果3倍。', ai:'STATIC', shape:'power' },
+    { id:'giant_dam', nameJa:'巨大ダム', phase:2, minStage:6, maxStage:7, category:'GIMMICK', realSizeMeters:100.0, hp:60, damageToShark:0, isHostile:false, damageValueYen:100000000000, massTons:120000, frenzyGain:28, gimmick:'DAM_FLOOD', color:0x88b8d8, onomatopoeia:['ザバァァァン!!','大洪水!!'], flavor:'壊せば街がプールに早変わり。陸のサメ歓喜。', ai:'STATIC', shape:'dam' },
+    { id:'gold_car', nameJa:'黄金のスポーツカー', phase:2, minStage:5, maxStage:7, category:'GOLDEN_RARE', realSizeMeters:32.0, hp:15, damageToShark:0, isHostile:false, damageValueYen:500000000000, massTons:2, frenzyGain:100, gimmick:'NONE', isGoldenRare:true, color:0xffd700, onomatopoeia:['黄金ラッシュ!!!'], flavor:'1台5,000億円の超高級車。ドリフトごと丸呑み。', ai:'GOLDEN', shape:'car' },
 
     // Phase 3 (6 + 1 gimmick + 1 golden)
-    { id:'bird', nameJa:'鳥（カモメ・ワシ）', phase:3, minStage:8, maxStage:9, category:'ORGANIC', realSizeMeters:220.0, hp:15, damageToShark:0, isHostile:false, damageValueYen:0, massTons:0.5, frenzyGain:4, gimmick:'NONE', color:0xffffff, onomatopoeia:['FLAP!','パクッ!'], flavor:'空の開幕を告げる軽いおやつ。', ai:'BOIDS', shape:'bird' },
-    { id:'heli', nameJa:'ヘリコプター', phase:3, minStage:8, maxStage:10, category:'MECHANICAL', realSizeMeters:380.0, hp:35, damageToShark:10, isHostile:true, damageValueYen:1500000000, massTons:12, frenzyGain:10, gimmick:'NONE', color:0x4b5563, onomatopoeia:['CHOP!','バキッ!'], flavor:'ローターが歯に挟まるので先に飛ばすのがおすすめ。', ai:'HUNTER', shape:'heli' },
-    { id:'airliner', nameJa:'旅客機', phase:3, minStage:8, maxStage:10, category:'MECHANICAL', realSizeMeters:1100.0, hp:65, damageToShark:6, isHostile:false, damageValueYen:30000000000, massTons:350, frenzyGain:12, gimmick:'NONE', color:0xf8fafc, onomatopoeia:['WHOOSH!','ガブッ!'], flavor:'飛行機雲をストローのように吸い込みながら本体へ。', ai:'FLEE', shape:'plane' },
-    { id:'fighter', nameJa:'戦闘機', phase:3, minStage:9, maxStage:10, category:'MECHANICAL', realSizeMeters:1800.0, hp:55, damageToShark:16, isHostile:true, damageValueYen:15000000000, massTons:25, frenzyGain:16, gimmick:'NONE', color:0x64748b, onomatopoeia:['BOOM!!','ドゴン!!'], flavor:'ちょこまか飛ぶ音速のハエ。攻撃の直前に噛み返せば一網打尽。', ai:'HUNTER', shape:'fighter' },
-    { id:'storm_cloud', nameJa:'積乱雲', phase:3, minStage:9, maxStage:10, category:'ENERGY', realSizeMeters:4200.0, hp:70, damageToShark:8, isHostile:false, damageValueYen:5000000000, massTons:500000, frenzyGain:18, gimmick:'NONE', color:0xe0e7ff, onomatopoeia:['ZAP-PUFF!!','ゴロゴロ!'], flavor:'綿あめのような口当たり。たまにピリッと雷が効いている。', ai:'FLOAT', shape:'cloud' },
-    { id:'boss_skyark', nameJa:'成層圏防衛母艦（ボス）', phase:3, minStage:10, maxStage:10, category:'MECHANICAL', realSizeMeters:16000.0, hp:1950, damageToShark:24, isHostile:true, damageValueYen:300000000000000, massTons:9000000, frenzyGain:60, gimmick:'NONE', color:0x6b7c93, onomatopoeia:['SKY BREAKER!!!'], flavor:'空飛ぶ鉄の島。これを食べればもう宇宙は目の前。', ai:'BOSS', shape:'boss', isBoss:true },
-    { id:'aerial_tanker', nameJa:'空中給油タンカー', phase:3, minStage:8, maxStage:10, category:'GIMMICK', realSizeMeters:950.0, hp:30, damageToShark:0, isHostile:false, damageValueYen:40000000000, massTons:400, frenzyGain:30, gimmick:'AERIAL_TANKER_BOOM', color:0xff3d00, onomatopoeia:['SKY BOOM!!'], flavor:'空飛ぶ特大花火。戦闘機編隊ごとどうぞ。', ai:'FLEE', shape:'plane' },
-    { id:'gold_ufo', nameJa:'謎のUFO', phase:3, minStage:8, maxStage:10, category:'GOLDEN_RARE', realSizeMeters:900.0, hp:20, damageToShark:0, isHostile:false, damageValueYen:999999999999, massTons:80, frenzyGain:100, gimmick:'NONE', isGoldenRare:true, color:0xffd700, onomatopoeia:['ALIEN SNACK!!!'], flavor:'ワープで逃げる宇宙の珍味。噛むとレーザーが強くなる。', ai:'GOLDEN', shape:'ufo' },
+    { id:'bird', nameJa:'鳥（カモメ・ワシ）', phase:3, minStage:8, maxStage:9, category:'ORGANIC', realSizeMeters:220.0, hp:15, damageToShark:0, isHostile:false, damageValueYen:0, massTons:0.5, frenzyGain:4, gimmick:'NONE', color:0xffffff, onomatopoeia:['バサッ!','パクッ!'], flavor:'空の開幕を告げる軽いおやつ。', ai:'BOIDS', shape:'bird' },
+    { id:'heli', nameJa:'ヘリコプター', phase:3, minStage:8, maxStage:10, category:'MECHANICAL', realSizeMeters:380.0, hp:35, damageToShark:10, isHostile:true, damageValueYen:1500000000, massTons:12, frenzyGain:10, gimmick:'NONE', color:0x4b5563, onomatopoeia:['ブチッ!','バキッ!'], flavor:'ローターが歯に挟まるので先に飛ばすのがおすすめ。', ai:'HUNTER', shape:'heli' },
+    { id:'airliner', nameJa:'旅客機', phase:3, minStage:8, maxStage:10, category:'MECHANICAL', realSizeMeters:1100.0, hp:65, damageToShark:6, isHostile:false, damageValueYen:30000000000, massTons:350, frenzyGain:12, gimmick:'NONE', color:0xf8fafc, onomatopoeia:['ヒュンッ!','ガブッ!'], flavor:'飛行機雲をストローのように吸い込みながら本体へ。', ai:'FLEE', shape:'plane' },
+    { id:'fighter', nameJa:'戦闘機', phase:3, minStage:9, maxStage:10, category:'MECHANICAL', realSizeMeters:1800.0, hp:55, damageToShark:16, isHostile:true, damageValueYen:15000000000, massTons:25, frenzyGain:16, gimmick:'NONE', color:0x64748b, onomatopoeia:['ドカン!!','ドゴン!!'], flavor:'ちょこまか飛ぶ音速のハエ。攻撃の直前に噛み返せば一網打尽。', ai:'HUNTER', shape:'fighter' },
+    { id:'storm_cloud', nameJa:'積乱雲', phase:3, minStage:9, maxStage:10, category:'ENERGY', realSizeMeters:4200.0, hp:70, damageToShark:8, isHostile:false, damageValueYen:5000000000, massTons:500000, frenzyGain:18, gimmick:'NONE', color:0xe0e7ff, onomatopoeia:['モクモクッ!!','ゴロゴロ!'], flavor:'綿あめのような口当たり。たまにピリッと雷が効いている。', ai:'FLOAT', shape:'cloud' },
+    { id:'boss_skyark', nameJa:'成層圏防衛母艦（ボス）', phase:3, minStage:10, maxStage:10, category:'MECHANICAL', realSizeMeters:16000.0, hp:1950, damageToShark:24, isHostile:true, damageValueYen:300000000000000, massTons:9000000, frenzyGain:60, gimmick:'NONE', color:0x6b7c93, onomatopoeia:['空ごと丸呑み!!!'], flavor:'空飛ぶ鉄の島。これを食べればもう宇宙は目の前。', ai:'BOSS', shape:'boss', isBoss:true },
+    { id:'aerial_tanker', nameJa:'空中給油タンカー', phase:3, minStage:8, maxStage:10, category:'GIMMICK', realSizeMeters:950.0, hp:30, damageToShark:0, isHostile:false, damageValueYen:40000000000, massTons:400, frenzyGain:30, gimmick:'AERIAL_TANKER_BOOM', color:0xff3d00, onomatopoeia:['空中大爆発!!'], flavor:'空飛ぶ特大花火。戦闘機編隊ごとどうぞ。', ai:'FLEE', shape:'plane' },
+    { id:'gold_ufo', nameJa:'謎の円盤', phase:3, minStage:8, maxStage:10, category:'GOLDEN_RARE', realSizeMeters:900.0, hp:20, damageToShark:0, isHostile:false, damageValueYen:999999999999, massTons:80, frenzyGain:100, gimmick:'NONE', isGoldenRare:true, color:0xffd700, onomatopoeia:['宇宙の珍味!!!'], flavor:'ワープで逃げる宇宙の珍味。見つけたら全力で追え！', ai:'GOLDEN', shape:'ufo' },
 
     // Phase 4 (8 + 1 gimmick + 1 golden)
-    { id:'satellite', nameJa:'人工衛星', phase:4, minStage:11, maxStage:12, category:'MECHANICAL', realSizeMeters:11000.0, hp:25, damageToShark:0, isHostile:false, damageValueYen:50000000000, massTons:12, frenzyGain:6, gimmick:'NONE', color:0xffc107, onomatopoeia:['CRISP!','パキッ!'], flavor:'金箔包みの一口チョコ。通信網が止まるのはご愛嬌。', ai:'ORBIT', shape:'sat' },
-    { id:'rocket', nameJa:'ロケット', phase:4, minStage:11, maxStage:12, category:'MECHANICAL', realSizeMeters:22000.0, hp:35, damageToShark:8, isHostile:false, damageValueYen:20000000000, massTons:3000, frenzyGain:10, gimmick:'NONE', color:0xf8fafc, onomatopoeia:['BLAST!','ボッ!'], flavor:'自分から宇宙へ配達されてくる熱々グルメ。', ai:'FLEE', shape:'rocket' },
-    { id:'iss', nameJa:'ISS（宇宙ステーション）', phase:4, minStage:11, maxStage:12, category:'MECHANICAL', realSizeMeters:42000.0, hp:60, damageToShark:4, isHostile:false, damageValueYen:15000000000000, massTons:450, frenzyGain:14, gimmick:'NONE', color:0xd97706, onomatopoeia:['CRUNCH!!','ガシャッ!'], flavor:'宇宙最大の組み立て式おやつ。', ai:'ORBIT', shape:'iss' },
-    { id:'meteor', nameJa:'隕石 / 彗星', phase:4, minStage:11, maxStage:14, category:'STRUCTURE', realSizeMeters:65000.0, hp:50, damageToShark:12, isHostile:false, damageValueYen:0, massTons:5e8, frenzyGain:10, gimmick:'NONE', color:0x8d6e63, onomatopoeia:['SHATTER!','ガリッ!'], flavor:'宇宙の氷菓とロックキャンディ。歯が丈夫なサメ向け。', ai:'ORBIT', shape:'rock' },
-    { id:'planet', nameJa:'月 / 惑星（地球・火星・土星）', phase:4, minStage:12, maxStage:14, category:'STRUCTURE', realSizeMeters:1200000.0, hp:120, damageToShark:10, isHostile:false, damageValueYen:1e16, massTons:6e21, frenzyGain:22, gimmick:'NONE', color:0x00b0ff, onomatopoeia:['PLANET CRUSH!!!'], flavor:'地殻はカリッと、中はトロトロのマグマ仕立て。土星の環は極上。', ai:'ORBIT', shape:'planet' },
-    { id:'space_fleet', nameJa:'宇宙防衛艦隊', phase:4, minStage:12, maxStage:14, category:'MECHANICAL', realSizeMeters:450000.0, hp:85, damageToShark:18, isHostile:true, damageValueYen:5e14, massTons:2e7, frenzyGain:18, gimmick:'NONE', color:0x93c5fd, onomatopoeia:['SHIELD BREAK!!'], flavor:'シールドを割る音が気持ちいい高スコア食材。', ai:'HUNTER', shape:'fleet' },
-    { id:'blackhole', nameJa:'ブラックホール', phase:4, minStage:13, maxStage:14, category:'ENERGY', realSizeMeters:12000000.0, hp:140, damageToShark:22, isHostile:true, damageValueYen:1e17, massTons:2e27, frenzyGain:35, gimmick:'NONE', color:0x110022, onomatopoeia:['VOID GULP!!!'], flavor:'かつての絶対的脅威。吸い返す瞬間、物理法則は敗北する。', ai:'GRAVITY', shape:'blackhole' },
-    { id:'boss_sun', nameJa:'太陽（ボス）', phase:4, minStage:14, maxStage:14, category:'ENERGY', realSizeMeters:1.2e9, hp:2600, damageToShark:26, isHostile:true, damageValueYen:9e18, massTons:2e27, frenzyGain:100, gimmick:'NONE', color:0xffaa00, onomatopoeia:['SUPERNOVA BITE!!!!!'], flavor:'150万kmの極上プラズマ。飲み込んだ瞬間、サメは神になる。', ai:'BOSS', shape:'boss', isBoss:true },
-    { id:'asteroid_core', nameJa:'不安定な小惑星コア', phase:4, minStage:11, maxStage:14, category:'GIMMICK', realSizeMeters:90000.0, hp:30, damageToShark:0, isHostile:false, damageValueYen:0, massTons:8e9, frenzyGain:25, gimmick:'ASTEROID_CHAIN', color:0xff5722, onomatopoeia:['MEGA SHATTER!!'], flavor:'宇宙のドミノ倒しスイッチ。', ai:'ORBIT', shape:'core' },
-    { id:'gold_comet', nameJa:'黄金の彗星', phase:4, minStage:11, maxStage:14, category:'GOLDEN_RARE', realSizeMeters:150000.0, hp:20, damageToShark:0, isHostile:false, damageValueYen:1e16, massTons:1e10, frenzyGain:100, gimmick:'NONE', isGoldenRare:true, color:0xfff08a, onomatopoeia:['COSMIC JACKPOT!!!'], flavor:'太陽系最高峰のジャックポット。', ai:'GOLDEN', shape:'comet' },
+    { id:'satellite', nameJa:'人工衛星', phase:4, minStage:11, maxStage:12, category:'MECHANICAL', realSizeMeters:11000.0, hp:25, damageToShark:0, isHostile:false, damageValueYen:50000000000, massTons:12, frenzyGain:6, gimmick:'NONE', color:0xffc107, onomatopoeia:['パリッ!','パキッ!'], flavor:'金箔包みの一口チョコ。通信網が止まるのはご愛嬌。', ai:'ORBIT', shape:'sat' },
+    { id:'rocket', nameJa:'ロケット', phase:4, minStage:11, maxStage:12, category:'MECHANICAL', realSizeMeters:22000.0, hp:35, damageToShark:8, isHostile:false, damageValueYen:20000000000, massTons:3000, frenzyGain:10, gimmick:'NONE', color:0xf8fafc, onomatopoeia:['ボシュッ!','ボッ!'], flavor:'自分から宇宙へ配達されてくる熱々グルメ。', ai:'FLEE', shape:'rocket' },
+    { id:'iss', nameJa:'宇宙ステーション', phase:4, minStage:11, maxStage:12, category:'MECHANICAL', realSizeMeters:42000.0, hp:60, damageToShark:4, isHostile:false, damageValueYen:15000000000000, massTons:450, frenzyGain:14, gimmick:'NONE', color:0xd97706, onomatopoeia:['バリバリッ!!','ガシャッ!'], flavor:'宇宙最大の組み立て式おやつ。', ai:'ORBIT', shape:'iss' },
+    { id:'meteor', nameJa:'隕石 / 彗星', phase:4, minStage:11, maxStage:14, category:'STRUCTURE', realSizeMeters:65000.0, hp:50, damageToShark:12, isHostile:false, damageValueYen:0, massTons:5e8, frenzyGain:10, gimmick:'NONE', color:0x8d6e63, onomatopoeia:['ガラガラッ!','ガリッ!'], flavor:'宇宙の氷菓とロックキャンディ。歯が丈夫なサメ向け。', ai:'ORBIT', shape:'rock' },
+    { id:'planet', nameJa:'月 / 惑星（地球・火星・土星）', phase:4, minStage:12, maxStage:14, category:'STRUCTURE', realSizeMeters:1200000.0, hp:120, damageToShark:10, isHostile:false, damageValueYen:1e16, massTons:6e21, frenzyGain:22, gimmick:'NONE', color:0x00b0ff, onomatopoeia:['惑星粉砕!!!'], flavor:'地殻はカリッと、中はトロトロのマグマ仕立て。土星の環は極上。', ai:'ORBIT', shape:'planet' },
+    { id:'space_fleet', nameJa:'宇宙防衛艦隊', phase:4, minStage:12, maxStage:14, category:'MECHANICAL', realSizeMeters:450000.0, hp:85, damageToShark:18, isHostile:true, damageValueYen:5e14, massTons:2e7, frenzyGain:18, gimmick:'NONE', color:0x93c5fd, onomatopoeia:['シールド粉砕!!'], flavor:'シールドを割る音が気持ちいい高スコア食材。', ai:'HUNTER', shape:'fleet' },
+    { id:'blackhole', nameJa:'ブラックホール', phase:4, minStage:13, maxStage:14, category:'ENERGY', realSizeMeters:12000000.0, hp:140, damageToShark:22, isHostile:true, damageValueYen:1e17, massTons:2e27, frenzyGain:35, gimmick:'NONE', color:0x110022, onomatopoeia:['闇ごと丸呑み!!!'], flavor:'かつての絶対的脅威。吸い返す瞬間、物理法則は敗北する。', ai:'GRAVITY', shape:'blackhole' },
+    { id:'boss_sun', nameJa:'太陽（ボス）', phase:4, minStage:14, maxStage:14, category:'ENERGY', realSizeMeters:1.2e9, hp:2600, damageToShark:26, isHostile:true, damageValueYen:9e18, massTons:2e27, frenzyGain:100, gimmick:'NONE', color:0xffaa00, onomatopoeia:['超新星ガブッ!!!!!'], flavor:'150万kmの極上プラズマ。飲み込んだ瞬間、サメは神になる。', ai:'BOSS', shape:'boss', isBoss:true },
+    { id:'asteroid_core', nameJa:'不安定な小惑星コア', phase:4, minStage:11, maxStage:14, category:'GIMMICK', realSizeMeters:90000.0, hp:30, damageToShark:0, isHostile:false, damageValueYen:0, massTons:8e9, frenzyGain:25, gimmick:'ASTEROID_CHAIN', color:0xff5722, onomatopoeia:['大粉砕!!'], flavor:'宇宙のドミノ倒しスイッチ。', ai:'ORBIT', shape:'core' },
+    { id:'gold_comet', nameJa:'黄金の彗星', phase:4, minStage:11, maxStage:14, category:'GOLDEN_RARE', realSizeMeters:150000.0, hp:20, damageToShark:0, isHostile:false, damageValueYen:1e16, massTons:1e10, frenzyGain:100, gimmick:'NONE', isGoldenRare:true, color:0xfff08a, onomatopoeia:['宇宙の大当たり!!!'], flavor:'太陽系最高峰のジャックポット。', ai:'GOLDEN', shape:'comet' },
 
     // Phase 5 (4)
-    { id:'star_cluster', nameJa:'恒星群', phase:5, minStage:15, maxStage:15, category:'ENERGY', realSizeMeters:3.5e15, hp:25, damageToShark:0, isHostile:false, damageValueYen:1e18, massTons:1e30, frenzyGain:12, gimmick:'NONE', color:0x00f0ff, onomatopoeia:['STAR CRUNCH!','キラキラ!!'], flavor:'宇宙の海に散らばる色とりどりの金平糖。', ai:'ORBIT', shape:'star' },
-    { id:'nebula', nameJa:'星雲', phase:5, minStage:15, maxStage:15, category:'ENERGY', realSizeMeters:1.2e16, hp:35, damageToShark:0, isHostile:false, damageValueYen:1e18, massTons:1e33, frenzyGain:16, gimmick:'NONE', color:0xff2a85, onomatopoeia:['NEBULA GULP!!'], flavor:'甘い香りのしそうな銀河の綿菓子。', ai:'FLOAT', shape:'nebula' },
-    { id:'other_galaxy', nameJa:'他銀河', phase:5, minStage:15, maxStage:15, category:'ENERGY', realSizeMeters:4.5e16, hp:60, damageToShark:0, isHostile:false, damageValueYen:1e19, massTons:1e38, frenzyGain:25, gimmick:'NONE', color:0xffd700, onomatopoeia:['SLURP GALAXY!!!'], flavor:'数千億の星を渦ごとズルズル吸い込む究極の麺類。', ai:'ORBIT', shape:'galaxy' },
-    { id:'boss_milkyway', nameJa:'天の川銀河', phase:5, minStage:15, maxStage:15, category:'ENERGY', realSizeMeters:5e17, hp:2400, damageToShark:10, isHostile:false, damageValueYen:9.99e19, massTons:1.5e42, frenzyGain:100, gimmick:'NONE', color:0xffffff, onomatopoeia:['MILKY WAY GOD!!!!!'], flavor:'我らが故郷、そしてサメの新たな泳ぎ場。', ai:'BOSS', shape:'boss', isBoss:true }
+    { id:'star_cluster', nameJa:'恒星群', phase:5, minStage:15, maxStage:15, category:'ENERGY', realSizeMeters:3.5e15, hp:25, damageToShark:0, isHostile:false, damageValueYen:1e18, massTons:1e30, frenzyGain:12, gimmick:'NONE', color:0x00f0ff, onomatopoeia:['星くずガリッ!','キラキラ!!'], flavor:'宇宙の海に散らばる色とりどりの金平糖。', ai:'ORBIT', shape:'star' },
+    { id:'nebula', nameJa:'星雲', phase:5, minStage:15, maxStage:15, category:'ENERGY', realSizeMeters:1.2e16, hp:35, damageToShark:0, isHostile:false, damageValueYen:1e18, massTons:1e33, frenzyGain:16, gimmick:'NONE', color:0xff2a85, onomatopoeia:['星雲ゴクン!!'], flavor:'甘い香りのしそうな銀河の綿菓子。', ai:'FLOAT', shape:'nebula' },
+    { id:'other_galaxy', nameJa:'他銀河', phase:5, minStage:15, maxStage:15, category:'ENERGY', realSizeMeters:4.5e16, hp:60, damageToShark:0, isHostile:false, damageValueYen:1e19, massTons:1e38, frenzyGain:25, gimmick:'NONE', color:0xffd700, onomatopoeia:['銀河ズルズル!!!'], flavor:'数千億の星を渦ごとズルズル吸い込む究極の麺類。', ai:'ORBIT', shape:'galaxy' },
+    { id:'boss_milkyway', nameJa:'天の川銀河', phase:5, minStage:15, maxStage:15, category:'ENERGY', realSizeMeters:5e17, hp:2400, damageToShark:10, isHostile:false, damageValueYen:9.99e19, massTons:1.5e42, frenzyGain:100, gimmick:'NONE', color:0xffffff, onomatopoeia:['天の川丸呑み!!!!!'], flavor:'我らが故郷、そしてサメの新たな泳ぎ場。', ai:'BOSS', shape:'boss', isBoss:true }
   ];
   const PREY_MAP = Object.fromEntries(PREY_CATALOG.map(p => [p.id, p]));
   const EXPLOSIVE_GIMMICKS = new Set(['FUEL_EXPLOSION', 'AERIAL_TANKER_BOOM', 'ASTEROID_CHAIN']);
@@ -1534,12 +1790,12 @@
   // Expanded 20-Node Fine-Grained Upgrade & Evolution Tree (6 Tiers x 3 Branches + 2 Hidden)
   const EVOLUTIONS = [
     // DESTROYER (6 Tiers: Bite Power, Jaw Size, Armor, Suction)
-    { id:'dest_1', branch:'DESTROYER', tier:1, name:'強化キバ Lv.1', cost:1, desc:'噛みつき威力+25%＆鋼鉄の顎装甲を装着！', effect:{ biteDamageMult:1.25 }, visualPart:'METAL_JAW_ARMOR' },
-    { id:'dest_2', branch:'DESTROYER', tier:2, name:'鋼鉄ウロコ装甲', cost:1, desc:'最大HP+30＆被ダメージ25%軽減！', effect:{ maxHpBonus:30, damageReduction:0.25 }, visualPart:'HEAVY_DORSAL_PLATES' },
+    { id:'dest_1', branch:'DESTROYER', tier:1, name:'強化キバ', cost:1, desc:'噛みつき威力+25%＆鋼鉄の顎装甲を装着！', effect:{ biteDamageMult:1.25 }, visualPart:'METAL_JAW_ARMOR' },
+    { id:'dest_2', branch:'DESTROYER', tier:2, name:'鋼鉄ウロコ装甲', cost:1, desc:'最大体力+30＆被ダメージ25%軽減！', effect:{ maxHpBonus:30, damageReduction:0.25 }, visualPart:'HEAVY_DORSAL_PLATES' },
     { id:'dest_3', branch:'DESTROYER', tier:3, name:'大口アゴ拡張', cost:1, desc:'丸呑み可能サイズ+10%＆捕食範囲拡大！', effect:{ instantEatRatioBonus:0.10, biteRangeBonus:0.22 }, visualPart:'METAL_JAW_ARMOR' },
     { id:'dest_4', branch:'DESTROYER', tier:4, name:'破砕クラッシュ顎', cost:1, desc:'格上・ボスへの噛みつき威力さらに+30%！', effect:{ bigTargetMult:1.30 }, visualPart:'HEAVY_DORSAL_PLATES' },
     { id:'dest_5', branch:'DESTROYER', tier:5, name:'グラビティ・モー', cost:2, desc:'口元の吸い込み範囲1.8倍！周囲の餌を一気に吸引！', effect:{ suctionRadiusMult:1.8 }, visualPart:'MINI_BLACKHOLE_MOUTH' },
-    { id:'dest_6', branch:'DESTROYER', tier:6, name:'タイタン・ジョーズ', cost:2, desc:'最大HP+50＆丸呑み上限さらに+10%！究極の捕食顎！', effect:{ maxHpBonus:50, instantEatRatioBonus:0.10 }, visualPart:'MINI_BLACKHOLE_MOUTH' },
+    { id:'dest_6', branch:'DESTROYER', tier:6, name:'タイタン・ジョーズ', cost:2, desc:'最大体力+50＆丸呑み上限さらに+10%！究極の捕食顎！', effect:{ maxHpBonus:50, instantEatRatioBonus:0.10 }, visualPart:'MINI_BLACKHOLE_MOUTH' },
 
     // SWIFT (4 Tiers: Pure Speed, Mobility, Combo & Suction — no obsolete Boost/Drill!)
     { id:'swift_1', branch:'SWIFT', tier:1, name:'流線ヒレ強化', cost:1, desc:'基本移動速度+18%＆旋回スピード+20%！', effect:{ moveSpeedMult:1.18, turnRateMult:1.20 }, visualPart:'GLIDER_PECTORAL_FINS' },
@@ -1548,14 +1804,14 @@
     { id:'swift_4', branch:'SWIFT', tier:4, name:'ワープシャーク', cost:2, desc:'移動速度さらに+22%＆捕食吸い込み範囲1.4倍！', effect:{ moveSpeedMult:1.22, suctionRadiusMult:1.4 }, visualPart:'HYPER_SPEED_RINGS' },
 
     // MUTANT (4 Tiers: Growth, Electric Aura, Mouth Laser, Cosmic Appetite — Zero Frenzy!)
-    { id:'mut_1', branch:'MUTANT', tier:1, name:'暴食の胃袋 Lv.1', cost:1, desc:'捕食時の体長成長量+20%！成長スピード大幅アップ！', effect:{ growthMult:1.20 }, visualPart:'ELECTRIC_DORSAL_COILS' },
+    { id:'mut_1', branch:'MUTANT', tier:1, name:'暴食の胃袋', cost:1, desc:'捕食時の体長成長量+20%！成長スピード大幅アップ！', effect:{ growthMult:1.20 }, visualPart:'ELECTRIC_DORSAL_COILS' },
     { id:'mut_2', branch:'MUTANT', tier:2, name:'エレクトロ・コイル', cost:1, desc:'背部に放電コイルを装着！近くの獲物を自動感電！', effect:{ shockAuraRadius:4.5 }, visualPart:'ELECTRIC_DORSAL_COILS' },
     { id:'mut_3', branch:'MUTANT', tier:3, name:'レーザー・シャーク', cost:1, desc:'噛みつくたびに前方へ高熱レーザー！線上の獲物をまとめて削る！', effect:{ beamSkillEnabled:true }, visualPart:'MOUTH_LASER_CORE' },
-    { id:'mut_4', branch:'MUTANT', tier:4, name:'コズミック暴食王', cost:2, desc:'成長量さらに+25%＆最大HP+40！背部プラズマ展開！', effect:{ growthMult:1.25, maxHpBonus:40 }, visualPart:'SOLAR_PLASMA_AURA' },
+    { id:'mut_4', branch:'MUTANT', tier:4, name:'コズミック暴食王', cost:2, desc:'成長量さらに+25%＆最大体力+40！背部プラズマ展開！', effect:{ growthMult:1.25, maxHpBonus:40 }, visualPart:'SOLAR_PLASMA_AURA' },
 
     // HIDDEN HYBRID FORMS (2)
     { id:'hyb_mecha', branch:'HYBRID', tier:6, name:'メカ・シャーク（隠し）', cost:0, unlockCondition:'METAL', desc:'【隠し形態】金属捕食率55%以上で解放！被ダメ50%減＆弾自動迎撃！', effect:{ autoInterceptMissiles:true, damageReduction:0.50 }, visualPart:'FULL_CYBORG_SKIN' },
-    { id:'hyb_ghost', branch:'HYBRID', tier:6, name:'ゴースト・シャーク（隠し）', cost:0, unlockCondition:'GHOST', desc:'【隠し形態】エネルギー比率50%+BH捕食で解放！半透明の幽体装甲で被ダメ40%減！', effect:{ damageReduction:0.40 }, visualPart:'TRANSLUCENT_GHOST_SHADER' }
+    { id:'hyb_ghost', branch:'HYBRID', tier:6, name:'ゴースト・シャーク（隠し）', cost:0, unlockCondition:'GHOST', desc:'【隠し形態】エネルギー比率50%＋ブラックホール捕食で解放！半透明の幽体装甲で被ダメ40%減！', effect:{ damageReduction:0.40 }, visualPart:'TRANSLUCENT_GHOST_SHADER' }
   ];
 
   // All 50 News Ticker Lines by Phase
@@ -1585,7 +1841,7 @@
       '速報!! 黄金のスポーツカーが都心を爆走中!! サメが猛追!!',
       '速報!! サメがオフィス街を一直線に突き進み、ビルが次々と消失!!',
       '速報!! 推定被害総額が国家予算を突破!! 保険会社が全社休業へ!!',
-      '緊急!! 秘密兵器「対サメ決戦巨大ロボ G-SHARK BUSTER」発進!!',
+      '緊急!! 秘密兵器「対サメ決戦巨大ロボ」発進!!',
       '速報!! 巨大ロボの胸部コアが噛み砕かれ大破!! サメに翼が生え始めました!!'
     ],
     3: [
@@ -1595,14 +1851,14 @@
       '速報!! 最新鋭ステルス戦闘機編隊、サメの噛み返しで一網打尽!!',
       '速報!! 空中給油タンカーが誘爆!! 上空に巨大な炎の輪が出現!!',
       '速報!! 気象庁発表「台風と積乱雲がサメに食べられ消滅しました」!!',
-      '速報!! 成層圏に謎の黄金UFOが出現!! サメと超音速チェイス!!',
+      '速報!! 成層圏に謎の黄金の円盤が出現!! サメと超音速チェイス!!',
       '速報!! 国連、極秘の「成層圏防衛母艦スカイ・アーク」を緊急展開!!',
       '速報!! 防衛母艦の推進リングがすべて破壊!! 艦体が真っ二つ!!',
       '速報!! サメがマッハ30で成層圏を突破!! 宇宙空間へ進出しました!!'
     ],
     4: [
-      '速報!! GPS・通信衛星が全滅!! スマホが繋がらなくなっています!!',
-      '緊急!! 国際宇宙ステーション（ISS）と通信途絶「窓の外にサメの歯が…」!!',
+      '速報!! 測位・通信衛星が全滅!! スマホが繋がらなくなっています!!',
+      '緊急!! 国際宇宙ステーションと通信途絶「窓の外にサメの歯が…」!!',
       '速報!! 打ち上げ直後のロケットがそのまま丸呑みされました!!',
       '速報!! 小惑星帯で連鎖破砕が発生!! サメが掃除機のように隕石を吸引!!',
       '速報!! 黄金の彗星が太陽系を横断中!! 天文学者が騒然!!',
@@ -1625,43 +1881,64 @@
   // ランクの基準点（自動プレイのボットの結果をもとに決めた。ボットの成績が S と S+ の間に入る）
   const RANK_TABLE = { SPLUS: 70000, S: 55000, A: 42000, B: 30000 };
 
+  // 進化の系統の画面表示名
+  const BRANCH_LABELS = { DESTROYER: '破壊型', SWIFT: '俊敏型', MUTANT: '変異型', HYBRID: '隠し形態' };
+  // スキンの画面表示名（ボタンにはこの名前を出す）
+  const SKIN_LABELS = { STANDARD: '標準', GOLDEN_AGE: '黄金時代', NOIR: 'ノワール', NEON_CYBER: 'ネオン', SKETCHBOOK: 'スケッチ' };
   const COMIC_SKINS = ['STANDARD', 'GOLDEN_AGE', 'NOIR', 'NEON_CYBER', 'SKETCHBOOK'];
 
   // =========================================================================
   // 1. FORMATTERS & PERSISTENCE (localStorage safely wrapped)
   // =========================================================================
-  // 大きな数を、万・億・兆・京・垓・秭・穣の単位で読みやすくする
+  // 数の表示。日本語は万・億・兆…の単位、ほかの言語はその言語の短い書き方（1.2K、1.5億 など）を使う
+  const LANG = (window.GS_I18N && window.GS_I18N.lang) || 'ja';
+  const LOCALE = (window.GS_I18N && window.GS_I18N.locale) || 'ja-JP';
+  const IS_JA = LANG === 'ja';
   const JP_UNITS = [[1e28, '穣'], [1e24, '秭'], [1e20, '垓'], [1e16, '京'], [1e12, '兆'], [1e8, '億'], [1e4, '万']];
   function formatJpUnit(v, suffix, digits = 2) {
     for (const [base, name] of JP_UNITS) {
       if (v >= base) {
         const n = v / base;
-        const str = n >= 10000 ? Math.round(n).toLocaleString() : n.toFixed(n >= 100 ? 0 : digits);
+        const str = n >= 10000 ? Math.round(n).toLocaleString('ja-JP') : n.toFixed(n >= 100 ? 0 : digits);
         return `${str} ${name}${suffix}`;
       }
     }
-    return `${(Math.round(v * 10) / 10).toLocaleString()} ${suffix}`;
+    return `${(Math.round(v * 10) / 10).toLocaleString('ja-JP')} ${suffix}`;
+  }
+  const SUPERSCRIPT = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻' };
+  function formatInt(v) {
+    try { return Math.round(v).toLocaleString(LOCALE); } catch { return String(Math.round(v)); }
+  }
+  function formatCompact(v) {
+    if (v >= 1e15) {
+      const e = Math.floor(Math.log10(v));
+      const m = (v / Math.pow(10, e)).toFixed(2);
+      return `${m}×10${String(e).split('').map(c => SUPERSCRIPT[c]).join('')}`;
+    }
+    try { return new Intl.NumberFormat(LOCALE, { notation: 'compact', maximumFractionDigits: 2 }).format(v); }
+    catch { return v.toPrecision(3); }
   }
   function formatLength(m) {
     if (m >= 9.461e15) {
       const ly = m / 9.461e15;
-      return ly >= 1000 ? `${Math.round(ly).toLocaleString()} 光年` : `${ly.toFixed(1)} 光年`;
+      return tx('{0} 光年', ly >= 1000 ? formatInt(ly) : ly.toFixed(1));
     }
-    if (m >= 1e7) return formatJpUnit(m / 1000, 'km');
+    if (m >= 1e7) return IS_JA ? formatJpUnit(m / 1000, 'km') : `${formatCompact(m / 1000)} km`;
     if (m >= 1000) return `${(m / 1000).toFixed(2)} km`;
     return `${m.toFixed(m < 10 ? 2 : 1)} m`;
   }
   function formatYen(yen) {
+    if (!IS_JA) return yen <= 0 ? '¥0' : `¥${formatCompact(yen)}`;
     if (yen <= 0) return '0 円';
     if (yen >= 1e4) return formatJpUnit(yen, '円', yen >= 1e8 && yen < 1e12 ? 1 : 2);
     return `${Math.round(yen)} 円`;
   }
   function formatMass(tons) {
-    if (tons >= 2e39) return `${(tons / 2e39).toFixed(2)} 銀河質量`;
-    if (tons >= 2e33) return `${(tons / 2e33).toFixed(2)} 百万太陽質量`;
-    if (tons >= 2e27) return `${(tons / 2e27).toFixed(2)} 太陽質量`;
+    if (tons >= 2e39) return tx('{0} 銀河質量', (tons / 2e39).toFixed(2));
+    if (tons >= 2e33) return tx('{0} 百万太陽質量', (tons / 2e33).toFixed(2));
+    if (tons >= 2e27) return tx('{0} 太陽質量', (tons / 2e27).toFixed(2));
     if (tons < 1) return `${Math.round(tons * 1000)} kg`;
-    if (tons >= 1e4) return formatJpUnit(tons, 't');
+    if (tons >= 1e4) return IS_JA ? formatJpUnit(tons, 't') : `${formatCompact(tons)} t`;
     return `${tons.toFixed(1)} t`;
   }
   function formatTime(sec) {
@@ -2063,7 +2340,9 @@
     }
 
     setSkin(skinId) {
-      document.body.className = `skin-${skinId}`;
+      // スキンのクラスだけを入れ替える（PC表示や点滅軽減などのクラスは残す）
+      for (const c of [...document.body.classList]) if (c.startsWith('skin-')) document.body.classList.remove(c);
+      document.body.classList.add(`skin-${skinId}`);
       if (skinId === 'NEON_CYBER') {
         this.sharedUniforms.uOutlineColor.value.setHex(0x00f0ff);
       } else if (skinId === 'SKETCHBOOK') {
@@ -2227,6 +2506,7 @@
     }
 
     spawn(text, worldPos, baseScale = 3.0, scheme = 'fire', important = false) {
+      text = tx(text);
       // 画面をおおわないよう、同時に出す擬音の数を抑える（大事なものは古いものを押し出して出す）
       if (this.active.length >= 4 && !important) return;
       while (this.active.length >= 8) {
@@ -5645,16 +5925,49 @@
         }
       }, { capture: true, passive: false });
 
+      // 全画面（PCだけ）。ボタンか F キーで切り替える
+      const fsEl = document.documentElement;
+      const fsEnabled = !TOUCH_UI && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+      document.body.classList.toggle('fs-ok', fsEnabled);
+      const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+      this.toggleFullscreen = () => {
+        if (!fsEnabled) return;
+        try {
+          if (isFs()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+          else {
+            const req = fsEl.requestFullscreen || fsEl.webkitRequestFullscreen;
+            const r = req.call(fsEl, { navigationUI: 'hide' });
+            if (r && r.catch) r.catch(() => {});
+          }
+        } catch {}
+      };
+      const syncFsLabels = () => {
+        for (const id of ['btn-fullscreen', 'title-fullscreen-btn']) {
+          const b = document.getElementById(id);
+          b.textContent = tx(isFs() ? '⛶ 全画面を終了' : '⛶ 全画面');
+          b.classList.toggle('active-toggle', isFs());
+        }
+        this.onResize();
+      };
+      document.addEventListener('fullscreenchange', syncFsLabels);
+      document.addEventListener('webkitfullscreenchange', syncFsLabels);
+      document.getElementById('btn-fullscreen').addEventListener('click', (e) => { e.stopPropagation(); this.toggleFullscreen(); });
+      document.getElementById('title-fullscreen-btn').addEventListener('click', () => this.toggleFullscreen());
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) this.toggleFullscreen();
+      });
+
+      const CONTROLS_HTML = tx(CONTROLS_HTML_SRC);
       document.querySelector('.controls-tip').innerHTML = CONTROLS_HTML;
       document.getElementById('pause-controls').innerHTML = CONTROLS_HTML;
-      document.getElementById('tap-bite-guide').innerHTML = TOUCH_UI ? '👆 画面タップで<br>サメが噛みつく!!' : 'スペースキー か クリックで<br>サメが噛みつく!!';
+      document.getElementById('tap-bite-guide').innerHTML = tx(TOUCH_UI ? '👆 画面タップで<br>サメが噛みつく!!' : 'スペースキー か クリックで<br>サメが噛みつく!!');
       if (!TOUCH_UI) {
-        document.getElementById('evo-top-notice').innerHTML = '⚡ 進化可能!!<br>右下の「進化」をクリック（Vキー）!! ⚡';
-        document.getElementById('forced-evo-callout').innerHTML = '⚡ 進化ポイント獲得!! ⚡<br>進化ptでサメを強化しよう！<br>下の「⚡ 進化」をクリックして<br>1回目の進化を実行!! ▼';
+        document.getElementById('evo-top-notice').innerHTML = tx('⚡ 進化可能!!<br>右下の「進化」をクリック（Vキー）!! ⚡');
+        document.getElementById('forced-evo-callout').innerHTML = tx('⚡ 進化ポイント獲得!! ⚡<br>進化ポイントでサメを強化しよう！<br>下の「⚡ 進化」をクリックして<br>1回目の進化を実行!! ▼');
       }
       if (TOUCH_UI) {
-        document.getElementById('btn-resume').textContent = '再開する';
-        document.getElementById('evo-close-btn').textContent = 'あとで選ぶ';
+        document.getElementById('btn-resume').textContent = tx('再開する');
+        document.getElementById('evo-close-btn').textContent = tx('あとで選ぶ');
       }
 
       const unlockAudio = () => this.audio.init();
@@ -5668,7 +5981,7 @@
         this.audio.init();
         const m = this.audio.toggleMute();
         document.getElementById('btn-mute').textContent = m ? '🔇' : '🔊';
-        document.getElementById('title-mute-btn').textContent = m ? '音: OFF' : '音: ON';
+        document.getElementById('title-mute-btn').textContent = tx(m ? '音: 切' : '音: 入');
         this.saveSettings();
       };
       const drawer = document.getElementById('menu-drawer');
@@ -5693,8 +6006,9 @@
         this.skinIdx = (this.skinIdx + 1) % COMIC_SKINS.length;
         const s = COMIC_SKINS[this.skinIdx];
         this.shaderMgr.setSkin(s);
-        document.getElementById('btn-skin').textContent = 'SKIN: ' + s.slice(0, 4);
-        document.getElementById('title-skin-btn').textContent = 'SKIN: ' + s;
+        const skinLabel = tx('スキン: {0}', tx(SKIN_LABELS[s] || s));
+        document.getElementById('btn-skin').textContent = skinLabel;
+        document.getElementById('title-skin-btn').textContent = skinLabel;
         this.saveSettings();
       };
       document.getElementById('btn-skin').addEventListener('click', cycleSkin);
@@ -5702,7 +6016,7 @@
 
       document.getElementById('btn-24fps').addEventListener('click', (e) => {
         this.limited24fps = !this.limited24fps;
-        e.target.textContent = `24FPS: ${this.limited24fps ? 'ON' : 'OFF'}`;
+        e.target.textContent = tx(this.limited24fps ? '24コマ: 入' : '24コマ: 切');
         e.target.classList.toggle('active-toggle', this.limited24fps);
         this.saveSettings();
       });
@@ -5730,7 +6044,7 @@
 
       document.getElementById('btn-flash').addEventListener('click', (e) => {
         this.reducedFlash = !this.reducedFlash;
-        e.target.textContent = `点滅軽減: ${this.reducedFlash ? 'ON' : 'OFF'}`;
+        e.target.textContent = tx(this.reducedFlash ? '点滅軽減: 入' : '点滅軽減: 切');
         e.target.classList.toggle('active-toggle', this.reducedFlash);
         document.body.classList.toggle('reduced-flash', this.reducedFlash);
         this.saveSettings();
@@ -5864,14 +6178,14 @@
       tZone.classList.toggle('hidden-stick', !this.sticksVisible);
       vZone.classList.toggle('hidden-stick', !this.sticksVisible);
       const stickBtn = document.getElementById('btn-stick');
-      stickBtn.textContent = `STICK: ${this.sticksVisible ? 'ON' : 'OFF'}`;
+      stickBtn.textContent = tx(this.sticksVisible ? 'スティック: 表示' : 'スティック: 非表示');
       stickBtn.classList.toggle('active-toggle', this.sticksVisible);
       stickBtn.addEventListener('click', (e) => {
         this.sticksVisible = !this.sticksVisible;
         if (!this.sticksVisible) this.releaseSticks();
         tZone.classList.toggle('hidden-stick', !this.sticksVisible);
         vZone.classList.toggle('hidden-stick', !this.sticksVisible);
-        e.target.textContent = `STICK: ${this.sticksVisible ? 'ON' : 'OFF'}`;
+        e.target.textContent = tx(this.sticksVisible ? 'スティック: 表示' : 'スティック: 非表示');
         e.target.classList.toggle('active-toggle', this.sticksVisible);
         this.saveSettings();
       });
@@ -5882,7 +6196,7 @@
       const applyShake = () => {
         const [label, mult] = SHAKE_LEVELS[this.shakeLevel];
         this.shakeMult = mult;
-        shakeBtn.textContent = `揺れ: ${label}`;
+        shakeBtn.textContent = tx('揺れ: {0}', tx(label));
         shakeBtn.classList.toggle('active-toggle', this.shakeLevel > 0);
       };
       shakeBtn.addEventListener('click', () => {
@@ -5893,7 +6207,7 @@
 
       // 描画（標準 → 軽量）
       const applyGfxLabels = () => {
-        const label = `描画: ${this.lightMode ? '軽量' : '標準'}`;
+        const label = tx(this.lightMode ? '描画: 軽量' : '描画: 標準');
         for (const id of ['btn-gfx', 'title-gfx-btn']) {
           const b = document.getElementById(id);
           b.textContent = label;
@@ -6025,8 +6339,8 @@
       const now = performance.now();
       if (now - (this._preyCardAt || 0) < 3500) return;
       this._preyCardAt = now;
-      document.getElementById('prey-card-name').textContent = cfg.nameJa;
-      document.getElementById('prey-card-flavor').textContent = cfg.flavor || '';
+      document.getElementById('prey-card-name').textContent = tx(cfg.nameJa);
+      document.getElementById('prey-card-flavor').textContent = cfg.flavor ? tx(cfg.flavor) : '';
       const el = document.getElementById('prey-card');
       el.classList.add('show');
       clearTimeout(this._preyCardTo);
@@ -6053,7 +6367,7 @@
       } else if (t.step === 'WAIT_GAUGE' && t.timer <= 0) {
         const callout = document.getElementById('gauge-tut-callout');
         const bar = document.getElementById('hud-growth-bar-wrap').getBoundingClientRect();
-        callout.style.top = `${Math.round(bar.bottom + 12)}px`;
+        callout.style.top = `${Math.round((bar.bottom + 12) / (this.uiScale || 1))}px`;
         callout.style.display = 'block';
         document.getElementById('hud-tl').classList.add('tut-highlight');
         this.tutorial = { step: 'GAUGE', timer: 5.5 };
@@ -6072,8 +6386,8 @@
     showIssueCaption(phase) {
       const info = PHASE_INFO[phase];
       const box = document.getElementById('issue-caption');
-      document.getElementById('issue-title').textContent = info.issue;
-      document.getElementById('issue-sub').textContent = info.sub;
+      document.getElementById('issue-title').textContent = tx(info.issue);
+      document.getElementById('issue-sub').textContent = tx(info.sub);
       box.classList.add('show');
       clearTimeout(this._issueTo);
       this._issueTo = setTimeout(() => box.classList.remove('show'), 2800);
@@ -6081,8 +6395,8 @@
 
     showCutin(main, sub, dur = 1100) {
       const el = document.getElementById('cutin-banner');
-      document.getElementById('cutin-main').textContent = main;
-      document.getElementById('cutin-sub').textContent = sub;
+      document.getElementById('cutin-main').textContent = tx(main);
+      document.getElementById('cutin-sub').textContent = tx(sub);
       el.classList.add('show');
       clearTimeout(this._cutinTo);
       this._cutinTo = setTimeout(() => el.classList.remove('show'), dur);
@@ -6090,7 +6404,7 @@
 
     pushNews(line) {
       const el = document.getElementById('news-ticker-text');
-      el.textContent = `⚡ ${line} ⚡`;
+      el.textContent = `⚡ ${tx(line)} ⚡`;
       this.tickerX = window.innerWidth + 20;
     }
 
@@ -6266,9 +6580,9 @@
         this.shark.stage = newStage;
         this.shark.evolutionPoints += 1;
         this.shark.hp = Math.min(this.shark.maxHp, this.shark.hp + 25);
-        this.onomatopoeia.spawn('STAGE UP!!', this.shark.pos, this.shark.internalScale * 1.3, 'gold');
+        this.onomatopoeia.spawn('ステージアップ!!', this.shark.pos, this.shark.internalScale * 1.3, 'gold');
         this.audio.playGolden(false);
-        this.pushNews(`速報!! 巨大サメが体長 ${formatLength(this.shark.realLengthMeters)} に成長!! STAGE ${newStage} 突破!!`);
+        this.pushNews(tx('速報!! 巨大サメが体長 {0} に成長!! ステージ{1} 突破!!', formatLength(this.shark.realLengthMeters), newStage));
       }
 
       // Check Boss Spawn Thresholds
@@ -6333,7 +6647,7 @@
       this.particles.rescaleAll(shrink);
       this.onomatopoeia.rescaleAll(shrink);
       this.shiftPulse = 0.6;
-      this.onomatopoeia.spawn('SCALE UP!!', this.shark.pos, this.shark.internalScale * 1.6, 'gold');
+      this.onomatopoeia.spawn('巨大化!!', this.shark.pos, this.shark.internalScale * 1.6, 'gold');
     }
 
     updateFloatingOrigin() {
@@ -6354,17 +6668,17 @@
 
     transitionToPhase(nextPhase) {
       const stories = {
-        2: { kicker: 'ISSUE #2: 上陸!!', title: '海面突破！<br>東京湾へ上陸!!', desc: 'クラーケンを丸呑みしたサメの胸ビレが<br>強靭な脚へ進化！<br>巨大な体で都心のビル街へ這い上がった!!' },
-        3: { kicker: 'ISSUE #3: 離陸!!', title: '巨大ロボ吸収！<br>大空へ飛翔!!', desc: '対サメ決戦ロボの推進装置を取り込み、<br>背中にサイバー翼が展開！<br>重力さえ振り切り大気圏へ飛び立った!!' },
-        4: { kicker: 'ISSUE #4: 宇宙進出!!', title: 'マッハ30！<br>成層圏を突破!!', desc: '防衛母艦の軌道エンジンを噛み砕き、<br>青い空を突き抜けて<br>漆黒の宇宙・太陽系へ飛び出した!!' },
-        5: { kicker: 'FINAL ISSUE: 神格覚醒!!', title: '太陽を丸呑み！<br>銀河の覇者へ!!', desc: '灼熱の恒星を一口で飲み込み<br>ギャラクシー・シャークへ覚醒！<br>舞台は天の川銀河の果てへ!!' }
+        2: { kicker: '第2話：上陸!!', title: '海面突破！<br>東京湾へ上陸!!', desc: 'クラーケンを丸呑みしたサメの胸ビレが<br>強靭な脚へ進化！<br>巨大な体で都心のビル街へ這い上がった!!' },
+        3: { kicker: '第3話：離陸!!', title: '巨大ロボ吸収！<br>大空へ飛翔!!', desc: '対サメ決戦ロボの推進装置を取り込み、<br>背中にサイバー翼が展開！<br>重力さえ振り切り大気圏へ飛び立った!!' },
+        4: { kicker: '第4話：宇宙進出!!', title: 'マッハ30！<br>成層圏を突破!!', desc: '防衛母艦の軌道エンジンを噛み砕き、<br>青い空を突き抜けて<br>漆黒の宇宙・太陽系へ飛び出した!!' },
+        5: { kicker: '最終話：神格覚醒!!', title: '太陽を丸呑み！<br>銀河の覇者へ!!', desc: '灼熱の恒星を一口で飲み込み<br>ギャラクシー・シャークへ覚醒！<br>舞台は天の川銀河の果てへ!!' }
       };
       const st = stories[nextPhase];
       if (st) {
         const el = document.getElementById('story-interlude');
-        document.getElementById('story-kicker').textContent = st.kicker;
-        document.getElementById('story-title').innerHTML = st.title;
-        document.getElementById('story-desc').innerHTML = st.desc;
+        document.getElementById('story-kicker').textContent = tx(st.kicker);
+        document.getElementById('story-title').innerHTML = tx(st.title);
+        document.getElementById('story-desc').innerHTML = tx(st.desc);
         el.classList.add('active');
         clearTimeout(this._storyTo);
         this._storyTo = setTimeout(() => el.classList.remove('active'), 2300);
@@ -6531,8 +6845,8 @@
 
       if (cfg.isGoldenRare) {
         this.audio.playGolden(false);
-        this.pushNews(`★ レア出現!! ${cfg.nameJa} を目撃!! 噛みつき突進で追いつけ!! ★`);
-        this.showCutin('★ GOLDEN!! ★', `${cfg.nameJa}が出現!! 噛みつき突進で追いつけ!!`, 1300);
+        this.pushNews(tx('★ レア出現!! {0} を目撃!! 噛みつき突進で追いつけ!! ★', tx(cfg.nameJa)));
+        this.showCutin('★ 金色レア!! ★', tx('{0}が出現!! 噛みつき突進で追いつけ!!', tx(cfg.nameJa)), 1300);
       }
     }
 
@@ -6581,9 +6895,9 @@
 
       this.audio.playBossWarning();
       const bossName = cfg.nameJa.replace(/（ボス）$/, '');
-      this.showCutin(`VS ${bossName}!!`, '攻撃の直前に噛んでダウンを奪え!! 最後はダウン中に丸呑み!!', 1600);
+      this.showCutin(tx('{0} 襲来!!', tx(bossName)), '攻撃の直前に噛んでダウンを奪え!! 最後はダウン中に丸呑み!!', 1600);
       document.getElementById('boss-hud').classList.add('active');
-      document.getElementById('boss-name').textContent = `VS ${bossName}!!`;
+      document.getElementById('boss-name').textContent = tx('ボス：{0}', tx(bossName));
       document.getElementById('boss-hp-fill').style.width = '100%';
     }
 
@@ -6676,7 +6990,7 @@
           this.sharkRig.triggerBite(true);
           this.audio.playGolden(false);
           this.particles.emitBurst(p.pos, 32, 0xffe600, S * 0.85, false, 2);
-          this.onomatopoeia.spawn('COUNTER!! 撃退!!', p.pos, S * 1.45, 'gold', true);
+          this.onomatopoeia.spawn('返り討ち!!', p.pos, S * 1.45, 'gold', true);
           this.requestHitstop(0.06);
           this.triggerShake(0.24, 0.52);
 
@@ -6700,7 +7014,7 @@
           this.sharkRig.triggerBite(true);
           this.audio.playBite(s.phase, this.stats.comboCount, p.cfg.category, sizeRatio);
           this.particles.emitBurst(p.pos, 16, 0xffe600, S * 0.45, false, -5);
-          this.onomatopoeia.spawn('CRIT BITE!!', p.pos, S * 0.85, 'gold');
+          this.onomatopoeia.spawn('会心の一噛み!!', p.pos, S * 0.85, 'gold');
           this.requestHitstop(0.03);
           this.triggerShake(0.14, 0.26);
           if (p.hp <= 0) this.eatPrey(p);
@@ -6711,7 +7025,7 @@
           push.y = s.phase === 2 ? 0 : push.y;
           if (push.lengthSq() < 1e-4) push.set(-Math.sin(s.yaw), 0, -Math.cos(s.yaw));
           s.lungeVel.copy(push.normalize()).multiplyScalar(S * 7.0);
-          this.onomatopoeia.spawn('BONK!', p.pos, S * 0.7, 'cyan');
+          this.onomatopoeia.spawn('ボヨン!', p.pos, S * 0.7, 'cyan');
           if (p.aiState === 'STRIKE' || (sizeRatio > 1.35 && p.cfg.isHostile)) {
             this.damageShark(Math.max(6, p.cfg.damageToShark * (p.aiState === 'STRIKE' ? 0.85 : 0.45)));
           }
@@ -6740,7 +7054,7 @@
               b.telegraphTimer = 0;
               b.strikeTimer = 0;
               this.stats.counters++;
-              this.onomatopoeia.spawn('BOSS COUNTER!!', b.pos, S * 1.7, 'gold', true);
+              this.onomatopoeia.spawn('ボスに返し技!!', b.pos, S * 1.7, 'gold', true);
               this.audio.playGolden(false);
             }
             // ダウン中は大ダメージ、それ以外は4割。カウンターでダウンを奪うのが近道になる
@@ -6760,7 +7074,7 @@
             if (s.phase === 2) push.y = 0;
             if (push.lengthSq() < 1e-4) push.set(-Math.sin(s.yaw), 0, -Math.cos(s.yaw));
             s.lungeVel.copy(push.normalize()).multiplyScalar(S * 12.0);
-            this.onomatopoeia.spawn('BONK!!', jawPos, S * 1.0, 'cyan');
+            this.onomatopoeia.spawn('ボヨン!!', jawPos, S * 1.0, 'cyan');
             if (b.downTimer <= 0) this.damageShark(Math.max(8, b.cfg.damageToShark * 0.6));
           }
         }
@@ -6774,7 +7088,7 @@
           this.sharkRig.triggerBite(true);
           this.audio.playBite(s.phase, this.stats.comboCount + 1);
           this.particles.emitBurst(pr.pos, 18, 0xffe600, S * 0.65, false, 0);
-          this.onomatopoeia.spawn('CHOMP BREAK!!', pr.pos, S * 1.25, 'gold');
+          this.onomatopoeia.spawn('弾をかみ砕いた!!', pr.pos, S * 1.25, 'gold');
           this.requestHitstop(0.04);
           this.scene.remove(pr.mesh);
           this.projectiles.splice(i, 1);
@@ -6783,12 +7097,12 @@
         if (!pr.fromShark && s.subAction === 'TAIL_SLAP' && pr.pos.distanceTo(s.pos) < S * 5.2) {
           pr.vel.negate().multiplyScalar(2.1);
           pr.fromShark = true;
-          this.onomatopoeia.spawn('REFLECT!!', pr.pos, S * 1.1, 'cyan');
+          this.onomatopoeia.spawn('はね返し!!', pr.pos, S * 1.1, 'cyan');
           continue;
         }
         if (pr.fromShark && this.boss && pr.pos.distanceTo(this.boss.pos) < this.boss.internalRadius * 1.15) {
           this.boss.downTimer = 4.0;
-          this.onomatopoeia.spawn('COUNTER STUN!!', this.boss.pos, S * 1.5, 'gold');
+          this.onomatopoeia.spawn('返し技でダウン!!', this.boss.pos, S * 1.5, 'gold');
           this.damageBoss(115, true);
           this.scene.remove(pr.mesh);
           this.projectiles.splice(i, 1);
@@ -6926,7 +7240,7 @@
         const mult = this.shark.floodTimer > 0 ? 3.0 : 1.0; // 3x synergy when city flooded!
         const rad = S * 15 * mult;
         this.particles.emitBurst(p.pos, 42, 0x00f0ff, S * 0.9, false, 0);
-        if (mult > 1) this.onomatopoeia.spawn('FLOOD ELECTRIC 3X!!', p.pos, S * 1.4, 'cyan');
+        if (mult > 1) this.onomatopoeia.spawn('水没感電3倍!!', p.pos, S * 1.4, 'cyan');
         this.pushNews(NEWS_BY_PHASE[2][6]);
         let chainCount = 0;
         for (const o of this.preys) {
@@ -6940,7 +7254,7 @@
         this.audio.playDamBreak();
         this.shark.floodTimer = 25.0;
         this.floodPlane.visible = true;
-        this.showCutin('DAM BREAK!!', '25秒間 都市水没!! 水中超加速＆発電所感電3倍!!', 1200);
+        this.showCutin('ダム決壊!!', '25秒間 都市水没!! 水中超加速＆発電所感電3倍!!', 1200);
         this.pushNews(NEWS_BY_PHASE[2][7]);
       }
     }
@@ -6951,7 +7265,7 @@
       this.boss.hp = Math.max(0, this.boss.hp - capped);
       this.audio.playBite(this.shark.phase, this.stats.comboCount + 2, this.boss ? this.boss.cfg.category : 'MECHANICAL', 1.2);
       this.particles.emitBurst(this.boss.pos, 28, isWeakHit ? 0xffe600 : 0xff6a00, this.shark.internalScale * 0.8, true, -3);
-      this.onomatopoeia.spawn(isWeakHit ? 'WEAK CRIT!!' : 'CRUNCH!!', this.boss.pos, this.shark.internalScale * 1.3, isWeakHit ? 'gold' : 'fire');
+      this.onomatopoeia.spawn(isWeakHit ? '弱点に会心!!' : 'バリバリッ!!', this.boss.pos, this.shark.internalScale * 1.3, isWeakHit ? 'gold' : 'fire');
       this.requestHitstop(0.06);
       this.triggerShake(0.22, 0.55);
 
@@ -6968,12 +7282,12 @@
             this.boss.mesh.userData.skyark.tiltZ += (pod.x > 0 ? -0.175 : 0.175);
             this.boss.mesh.userData.skyark.tiltX += (pod.z > 0 ? 0.12 : -0.12);
             this.particles.emitBurst(this.boss.pos, 32, 0x222228, this.shark.internalScale * 0.9, false, 3);
-            this.onomatopoeia.spawn('TURBINE BREAK!!', this.boss.pos, this.shark.internalScale * 1.5, 'fire');
+            this.onomatopoeia.spawn('タービン破壊!!', this.boss.pos, this.shark.internalScale * 1.5, 'fire');
           }
           // Sun prominence loop burst!
           if (this.boss.mesh.userData.sun) {
             this.particles.emitBurst(this.boss.pos, 35, 0xff6d00, this.shark.internalScale * 1.1, false, 0);
-            this.onomatopoeia.spawn('PROMINENCE BURST!!', this.boss.pos, this.shark.internalScale * 1.5, 'gold');
+            this.onomatopoeia.spawn('プロミネンス噴出!!', this.boss.pos, this.shark.internalScale * 1.5, 'gold');
           }
         }
       });
@@ -7001,7 +7315,7 @@
       this.requestHitstop(0.14, true);
       this.triggerShake(0.45, 0.9);
       this.audio.playChainExplosion();
-      this.onomatopoeia.spawn(b.cfg.onomatopoeia[0] || 'GIGA CHOMP!!', b.pos, this.shark.internalScale * 2.0, 'gold');
+      this.onomatopoeia.spawn(b.cfg.onomatopoeia[0] || 'ギガガブッ!!', b.pos, this.shark.internalScale * 2.0, 'gold');
       this.particles.emitBurst(b.pos, 70, 0xffe600, this.shark.internalScale * 1.2, true, 0);
 
       // Phase progression upon Boss defeat!
@@ -7078,7 +7392,7 @@
       closeBtn.style.display = this.forcedEvoTutorial ? 'none' : 'inline-block';
       const modal = document.getElementById('evo-modal');
       const container = document.getElementById('evo-cards');
-      document.getElementById('evo-pts-label').textContent = `進化ポイント: ${this.shark.evolutionPoints}`;
+      document.getElementById('evo-pts-label').textContent = tx('進化ポイント: {0}', this.shark.evolutionPoints);
       container.innerHTML = '';
 
       const available = [];
@@ -7095,17 +7409,17 @@
       });
 
       if (available.length === 0) {
-        container.innerHTML = '<div class="comic-text" style="text-align:center;">すべての進化を解放済み!!</div>';
+        container.innerHTML = `<div class="comic-text" style="text-align:center;">${tx('すべての進化を解放済み!!')}</div>`;
       } else {
         available.forEach(ev => {
           const canBuy = this.shark.evolutionPoints >= ev.cost;
           const card = document.createElement('div');
           card.className = `evo-card branch-${ev.branch}`;
           card.innerHTML = `
-            <span class="evo-card-tag">${ev.branch} • TIER ${ev.tier}</span>
-            <div class="evo-card-name">${ev.name}</div>
-            <div class="evo-card-desc">${ev.desc}</div>
-            <div class="evo-card-cost">${ev.cost === 0 ? '無料解放!!' : `コスト: ${ev.cost} pt`} ${canBuy ? '【選択】' : '(ポイント不足)'}</div>
+            <span class="evo-card-tag">${tx('{0}・第{1}段階', tx(BRANCH_LABELS[ev.branch] || ev.branch), ev.tier)}</span>
+            <div class="evo-card-name">${tx(ev.name)}</div>
+            <div class="evo-card-desc">${tx(ev.desc)}</div>
+            <div class="evo-card-cost">${ev.cost === 0 ? tx('無料解放!!') : tx('コスト：{0}ポイント', ev.cost)} ${canBuy ? tx('【選択】') : tx('(ポイント不足)')}</div>
           `;
           card.addEventListener('click', () => {
             // カードを作ったあとに状況が変わっていても、その場で買えるか確かめ直す
@@ -7124,7 +7438,7 @@
             }
             this.sharkRig.setEvolutionVisual(ev.visualPart, true);
             this.audio.playGolden(true);
-            this.onomatopoeia.spawn('EVOLVED!!', this.shark.pos, this.shark.internalScale * 1.4, 'gold');
+            this.onomatopoeia.spawn('進化!!', this.shark.pos, this.shark.internalScale * 1.4, 'gold');
             if (this.shark.evolutionPoints > 0) {
               this.mode = 'PLAYING';
               this.openEvolutionModal();
@@ -7181,32 +7495,33 @@
       this.mode = isClear ? 'CLEAR' : 'GAME_OVER';
       this.releaseSticks();
       document.getElementById('res-endless-btn').style.display = isClear ? 'inline-block' : 'none';
-      document.getElementById('result-headline').textContent = isClear ? 'THE END... OR IS IT?!' : 'SHARK DOWN!!';
-      document.getElementById('result-sub').textContent = isClear
+      document.getElementById('result-headline').textContent = tx(isClear ? '完…？ いや、まだ終わらない!!' : 'サメ、力尽きる!!');
+      document.getElementById('result-sub').textContent = tx(isClear
         ? '天の川銀河を制覇!! 宇宙は今、サメの海となった!!'
-        : '強敵に敗北…！次は進化とカウンター噛みつきでリベンジだ！';
+        : '強敵に敗北…！次は進化とカウンター噛みつきでリベンジだ！');
       const sc = this.computeScore(isClear);
       const totalScore = sc.total;
-      let rank = 'TRY AGAIN!';
+      let rank = '再挑戦!';
       if (isClear) {
-        if (this.usedDebug) rank = 'DEBUG CLEAR';
+        if (this.usedDebug) rank = 'デバッグクリア';
         else {
-          rank = totalScore >= RANK_TABLE.SPLUS ? 'S+ RANK!!'
-            : (totalScore >= RANK_TABLE.S ? 'S RANK!!'
-            : (totalScore >= RANK_TABLE.A ? 'A RANK!'
-            : (totalScore >= RANK_TABLE.B ? 'B RANK' : 'C RANK')));
+          rank = totalScore >= RANK_TABLE.SPLUS ? 'S+ランク!!'
+            : (totalScore >= RANK_TABLE.S ? 'Sランク!!'
+            : (totalScore >= RANK_TABLE.A ? 'Aランク!'
+            : (totalScore >= RANK_TABLE.B ? 'Bランク' : 'Cランク')));
         }
       }
+      rank = tx(rank);
       this.lastScore = sc;
-      document.getElementById('res-score').textContent = `${totalScore.toLocaleString()} pt`;
+      document.getElementById('res-score').textContent = tx('{0} 点', formatInt(totalScore));
       document.getElementById('result-rank').textContent = rank;
       document.getElementById('res-time').textContent = formatTime(this.stats.elapsedSec);
       document.getElementById('res-len').textContent = formatLength(this.shark.realLengthMeters);
       document.getElementById('res-mass').textContent = formatMass(this.stats.totalMassTons);
       document.getElementById('res-yen').textContent = formatYen(this.stats.totalDamageYen);
-      document.getElementById('res-time-label').textContent = isClear ? 'クリアタイム' : '到達タイム';
-      document.getElementById('res-combo').textContent = `${this.stats.totalEaten}体捕食 • 最大${this.stats.maxCombo} COMBO`;
-      document.getElementById('res-skill').textContent = `ボス撃破 ${this.stats.bossesDefeated} • カウンター ${this.stats.counters}回 • レア ${this.stats.goldenEaten}体 • 被ダメージ ${Math.round(this.stats.damageTaken)}`;
+      document.getElementById('res-time-label').textContent = tx(isClear ? 'クリアタイム' : '到達タイム');
+      document.getElementById('res-combo').textContent = tx('{0}体捕食・最大{1}コンボ', formatInt(this.stats.totalEaten), formatInt(this.stats.maxCombo));
+      document.getElementById('res-skill').textContent = tx('ボス撃破 {0}・カウンター {1}回・レア {2}体・被ダメージ {3}', this.stats.bossesDefeated, this.stats.counters, this.stats.goldenEaten, Math.round(this.stats.damageTaken));
       document.getElementById('result-modal').classList.add('active');
     }
 
@@ -7565,7 +7880,7 @@
             // 25秒で逃げ切って消える（終わりのない追いかけっこにしない）
             p.goldenLife = (p.goldenLife ?? 25) - dt;
             if (p.goldenLife <= 0) {
-              this.onomatopoeia.spawn('ESCAPED...', p.pos, S * 1.1, 'cyan', true);
+              this.onomatopoeia.spawn('逃げられた…', p.pos, S * 1.1, 'cyan', true);
               this.scene.remove(p.mesh);
               disposeObjectGeometries(p.mesh);
               this.preys.splice(i, 1);
@@ -7612,7 +7927,7 @@
                 if (isWhale) {
                   // Whale Tail-Fluke Shockwave!
                   this.particles.emitBurst(p.pos, 26, 0x00f0ff, S * 0.95, false, 1);
-                  this.onomatopoeia.spawn('TAIL WAVE!!', p.pos, S * 1.2, 'cyan');
+                  this.onomatopoeia.spawn('尾ビレ衝撃波!!', p.pos, S * 1.2, 'cyan');
                   if (dist < S * 7.8 && this.shark.biteActiveTimer <= 0 && this.shark.subAction !== 'DRILL_RUSH') {
                     this.damageShark(Math.max(8, p.cfg.damageToShark * 0.8));
                   }
@@ -7644,7 +7959,7 @@
               if (dist < triggerRange && p.attackCd <= 0) {
                 p.aiState = 'TELEGRAPH';
                 p.telegraphTimer = 0.85;
-                this.onomatopoeia.spawn('⚡ ATTACK!!', p.pos, S * 0.95, 'fire');
+                this.onomatopoeia.spawn('⚡ 攻撃!!', p.pos, S * 0.95, 'fire');
               }
             }
           } else if (ai === 'FLEE' || ai === 'BOIDS' || ai === 'HUNTER' || ai === 'WHALE') {
@@ -7733,7 +8048,7 @@
           b.downTimer = Math.max(0, b.downTimer - dt);
           if (bossId !== 'boss_robo') b.mesh.rotation.z = Math.sin(performance.now() * 0.025) * 0.22;
           animateModelParts(b.mesh, dt, this.shark.pos);
-          subEl.textContent = `💥 DOWN!! 弱点露出 2倍ダメージ (${b.downTimer.toFixed(1)}s)`;
+          subEl.textContent = tx('💥 ダウン!! 弱点露出・ダメージ2倍（あと{0}秒）', b.downTimer.toFixed(1));
         } else {
           b.mesh.rotation.z = 0;
           if (bossId === 'boss_kraken' || bossId === 'boss_robo') {
@@ -7755,12 +8070,12 @@
 
           if (b.strikeTimer > 0) {
             b.strikeTimer = Math.max(0, b.strikeTimer - dt);
-            subEl.textContent = '⚡ 攻撃中!! 噛みつきカウンターでダウン奪取!!';
+            subEl.textContent = tx('⚡ 攻撃中!! 噛みつきカウンターでダウン奪取!!');
           } else if (b.hp <= b.maxHp * 0.16) {
-            subEl.textContent = '🔥 瀕死!! 噛みついて丸呑みフィニッシュ!!';
+            subEl.textContent = tx('🔥 瀕死!! ダウンさせて丸呑みフィニッシュ!!');
           } else if (b.telegraphTimer > 0) {
             b.telegraphTimer -= dt;
-            subEl.textContent = '⚠️ 攻撃予兆!! 噛みつきカウンターか回避せよ!!';
+            subEl.textContent = tx('⚠️ 攻撃予兆!! 噛みつきカウンターか回避せよ!!');
             if (b.telegraphTimer <= 0) {
               b.strikeTimer = 0.45;
               const baseDir = this.shark.pos.clone().sub(b.pos).normalize();
@@ -7777,7 +8092,7 @@
                   const d = baseDir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), ang);
                   this.spawnProjectile(b.pos, b.pos.clone().addScaledVector(d, 24), b.cfg.damageToShark || 22);
                 });
-                this.onomatopoeia.spawn('MEGA BEAM!!', b.pos, S * 1.6, 'cyan');
+                this.onomatopoeia.spawn('超ビーム!!', b.pos, S * 1.6, 'cyan');
                 b.downTimer = 3.0;
                 b.strikeTimer = 0;
               } else if (bossId === 'boss_skyark') {
@@ -7797,7 +8112,7 @@
                   const d = new THREE.Vector3(Math.cos(ang) * Math.cos(pitch), Math.sin(pitch), Math.sin(ang) * Math.cos(pitch)).normalize();
                   this.spawnProjectile(b.pos, b.pos.clone().addScaledVector(d, 28), dmg);
                 }
-                this.onomatopoeia.spawn(bossId === 'boss_sun' ? 'SOLAR NOVA!!' : 'GALAXY NOVA!!', b.pos, S * 1.75, 'gold');
+                this.onomatopoeia.spawn(bossId === 'boss_sun' ? '太陽フレア!!' : '銀河フレア!!', b.pos, S * 1.75, 'gold');
                 this.particles.emitBurst(b.pos, 32, bossId === 'boss_sun' ? 0xffaa00 : 0xff4da6, S * 1.3, false, 0);
               } else {
                 [-0.22, 0, 0.22].forEach(ang => {
@@ -7808,11 +8123,11 @@
               b.attackTimer = (bossId === 'boss_sun' || bossId === 'boss_milkyway') ? 2.2 : 3.0;
             }
           } else {
-            subEl.textContent = '弾を噛み砕き＆カウンター噛みつきで部位破壊!!';
+            subEl.textContent = tx('弾を噛み砕き＆カウンター噛みつきで部位破壊!!');
             b.attackTimer -= dt;
             if (b.attackTimer <= 0) {
               b.telegraphTimer = bossId === 'boss_kraken' ? 1.0 : 0.9;
-              this.onomatopoeia.spawn('⚡ WARNING!!', b.pos, S * 1.45, 'fire');
+              this.onomatopoeia.spawn('⚡ 警告!!', b.pos, S * 1.45, 'fire');
             }
           }
         }
@@ -8000,6 +8315,7 @@
         // Prey indicators (damaged HP bar, Golden target, and at most 1 closest larger target hint)
         let dangerShown = 0;
         let edibleShown = 0;
+        const uS = this.uiScale || 1; // PCでは目印や文字も画面の大きさに合わせて拡大する
         const evoI = this.getEvoStats();
         const touchLim = TOUCH_EAT_RATIO + evoI.instantEatRatioBonus * 0.5;
         const biteLim = BITE_EAT_RATIO + evoI.instantEatRatioBonus;
@@ -8026,10 +8342,11 @@
           const sy = (-proj.y * 0.5 + 0.5) * h;
 
           if (inFront && sx > 20 && sx < w - 20 && sy > 36 && sy < h - 36) {
+            ctx.save(); ctx.translate(sx, sy); ctx.scale(uS, uS); ctx.translate(-sx, -sy);
             if (showAttack) {
               const isCounter = (p.aiState === 'TELEGRAPH' && p.telegraphTimer <= 0.45) || (p.aiState === 'STRIKE' && p.strikeTimer >= 0.38);
               const blink = !this.reducedFlash && Math.floor(performance.now() / 100) % 2 === 0;
-              const txt = isCounter ? '⚡ COUNTER! 噛め!!' : '⚡ ATTACK!!';
+              const txt = tx(isCounter ? '⚡ 今だ! 噛め!!' : '⚡ 攻撃!!');
               ctx.font = '900 italic 15px Impact, sans-serif';
               ctx.strokeStyle = '#050508'; ctx.lineWidth = 5;
               ctx.strokeText(txt, sx, sy - 14);
@@ -8044,12 +8361,14 @@
               ctx.fillRect(sx - bw / 2, sy - 14, bw * Math.max(0, p.hp / p.maxHp), bh);
             } else if (showGold) {
               ctx.strokeStyle = '#050508'; ctx.lineWidth = 4;
-              ctx.strokeText('★ GOLDEN!!', sx, sy - 10);
-              ctx.fillStyle = '#FFD700'; ctx.fillText('★ GOLDEN!!', sx, sy - 10);
+              const goldTxt = tx('★ 金色レア!!');
+              ctx.strokeText(goldTxt, sx, sy - 10);
+              ctx.fillStyle = '#FFD700'; ctx.fillText(goldTxt, sx, sy - 10);
             } else if (showDanger) {
               ctx.strokeStyle = '#050508'; ctx.lineWidth = 4;
-              ctx.strokeText('噛んで削れ!', sx, sy - 8);
-              ctx.fillStyle = '#FF8A00'; ctx.fillText('噛んで削れ!', sx, sy - 8);
+              const gnawTxt = tx('噛んで削れ!');
+              ctx.strokeText(gnawTxt, sx, sy - 8);
+              ctx.fillStyle = '#FF8A00'; ctx.fillText(gnawTxt, sx, sy - 8);
             } else if (showEdible) {
               const biteable = ratio <= biteLim || p.cfg.gimmick !== 'NONE';
               ctx.fillStyle = biteable ? '#FFE600' : '#FF3B30';
@@ -8058,12 +8377,16 @@
               ctx.moveTo(sx - 6, sy - 14); ctx.lineTo(sx + 6, sy - 14); ctx.lineTo(sx, sy - 5); ctx.closePath();
               ctx.fill(); ctx.stroke();
             }
+            ctx.restore();
           } else if (showGold) {
-            const ax = Math.max(46, Math.min(w - 46, inFront ? sx : w - sx));
-            const ay = Math.max(54, Math.min(h - 54, inFront ? sy : h - sy));
+            const ax = Math.max(46 * uS, Math.min(w - 46 * uS, inFront ? sx : w - sx));
+            const ay = Math.max(54 * uS, Math.min(h - 54 * uS, inFront ? sy : h - sy));
+            ctx.save(); ctx.translate(ax, ay); ctx.scale(uS, uS);
             ctx.strokeStyle = '#050508'; ctx.lineWidth = 4;
-            ctx.strokeText('★ GOLDEN', ax, ay);
-            ctx.fillStyle = '#FFD700'; ctx.fillText('★ GOLDEN', ax, ay);
+            const goldEdge = tx('★ 金色レア');
+            ctx.strokeText(goldEdge, 0, 0);
+            ctx.fillStyle = '#FFD700'; ctx.fillText(goldEdge, 0, 0);
+            ctx.restore();
           }
         }
 
@@ -8074,12 +8397,36 @@
           const sx = (proj.x * 0.5 + 0.5) * w;
           const sy = (-proj.y * 0.5 + 0.5) * h;
           if (!inFront || sx < 24 || sx > w - 24 || sy < 40 || sy > h - 40) {
-            const ax = Math.max(58, Math.min(w - 58, inFront ? sx : w - sx));
-            const ay = Math.max(64, Math.min(h - 64, inFront ? sy : h - sy));
+            const ax = Math.max(58 * uS, Math.min(w - 58 * uS, inFront ? sx : w - sx));
+            const ay = Math.max(64 * uS, Math.min(h - 64 * uS, inFront ? sy : h - sy));
+            ctx.save(); ctx.translate(ax, ay); ctx.scale(uS, uS);
             ctx.font = '900 italic 16px Impact, sans-serif';
             ctx.strokeStyle = '#050508'; ctx.lineWidth = 5;
-            ctx.strokeText('☠ BOSS ☠', ax, ay);
-            ctx.fillStyle = '#FF2442'; ctx.fillText('☠ BOSS ☠', ax, ay);
+            const bossTxt = tx('☠ ボス ☠');
+            ctx.strokeText(bossTxt, 0, 0);
+            ctx.fillStyle = '#FF2442'; ctx.fillText(bossTxt, 0, 0);
+            ctx.restore();
+          }
+        }
+
+        // 色の効果がかかるスキンでは、敵の弾の位置に赤い輪を重ねて描く（2Dの層には色の効果がかからない）
+        if (this.skinIdx > 0 && this.projectiles.length) {
+          const edge = new THREE.Vector3();
+          const camUp = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
+          ctx.lineWidth = 3 * uS;
+          for (const pr of this.projectiles) {
+            if (pr.fromShark) continue;
+            proj.copy(pr.pos).project(this.camera);
+            if (proj.z >= 1) continue;
+            const px = (proj.x * 0.5 + 0.5) * w, py = (-proj.y * 0.5 + 0.5) * h;
+            if (px < -40 || px > w + 40 || py < -40 || py > h + 40) continue;
+            edge.copy(pr.pos).addScaledVector(camUp, pr.mesh.scale.x).project(this.camera);
+            const r = Math.max(7 * uS, Math.abs((-edge.y * 0.5 + 0.5) * h - py) * 1.25);
+            ctx.beginPath(); ctx.arc(px, py, r + 2 * uS, 0, Math.PI * 2);
+            ctx.strokeStyle = '#050508'; ctx.lineWidth = 6 * uS; ctx.stroke();
+            ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2);
+            ctx.strokeStyle = '#FF1744'; ctx.lineWidth = 3 * uS; ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 23, 68, 0.45)'; ctx.fill();
           }
         }
 
@@ -8135,14 +8482,15 @@
       if (this.boss) {
         const tl = document.getElementById('hud-tl').getBoundingClientRect();
         const hudTop = document.getElementById('hud').getBoundingClientRect().top;
-        const bw = Math.min(360, window.innerWidth * 0.84);
+        const u = this.uiScale || 1;
+        const bw = Math.min(360, window.innerWidth * 0.84) * u;
         const overlaps = (window.innerWidth - bw) / 2 < tl.right + 8;
-        bossHud.style.top = overlaps ? `${Math.round(tl.bottom - hudTop + 10)}px` : '';
+        bossHud.style.top = overlaps ? `${Math.round((tl.bottom - hudTop + 10) / u)}px` : '';
       }
       document.getElementById('hud-length').textContent = formatLength(s.realLengthMeters);
-      document.getElementById('hud-phase').textContent = `${PHASE_INFO[s.phase].name} • STAGE ${s.stage}/15`;
+      document.getElementById('hud-phase').textContent = tx('{0}・ステージ {1}/15', tx(PHASE_INFO[s.phase].name), s.stage);
       const vLbl = document.querySelector('#vert-stick-zone .stick-label');
-      if (vLbl) vLbl.textContent = (s.phase === 2 && s.floodTimer <= 0) ? 'ジャンプ' : '上下';
+      if (vLbl) vLbl.textContent = tx((s.phase === 2 && s.floodTimer <= 0) ? 'ジャンプ' : '上下');
 
       const curSt = STAGES[s.stage - 1] || STAGES[0];
       const logDen = Math.log(Math.max(1.01, curSt.maxLen / curSt.minLen));
@@ -8161,14 +8509,14 @@
       }
 
       document.getElementById('hud-wanted').textContent = this.stats.wantedLevel > 0 ? '★'.repeat(this.stats.wantedLevel) : '';
-      document.getElementById('hud-damage').textContent = this.stats.totalDamageYen > 0 ? `被害 ${formatYen(this.stats.totalDamageYen)}` : '';
+      document.getElementById('hud-damage').textContent = this.stats.totalDamageYen > 0 ? tx('被害 {0}', formatYen(this.stats.totalDamageYen)) : '';
       document.getElementById('hud-flood-badge').style.display = s.floodTimer > 0 ? 'block' : 'none';
 
       // Dynamic Big Comic Combo Pop!
       const comboEl = document.getElementById('hud-combo');
       if (this.stats.comboCount >= 2) {
         const c = this.stats.comboCount;
-        comboEl.textContent = c >= 20 ? `${c} MEGA COMBO!!` : `${c} COMBO!`;
+        comboEl.textContent = tx(c >= 20 ? '{0} メガコンボ!!' : '{0} コンボ!', formatInt(c));
         const cScale = Math.min(1.16, 0.94 + c * 0.008);
         comboEl.style.transform = `scale(${cScale}) skewX(-10deg)`;
         comboEl.style.color = c >= 15 ? '#FF2A85' : (c >= 8 ? '#FF6A00' : '#FFE600');
@@ -8188,7 +8536,7 @@
       evoBtn.classList.toggle('locked', !canBuyAny);
       evoBtn.classList.toggle('evo-active', canBuyAny);
       const onlyFree = canBuyAny && s.evolutionPoints <= 0;
-      evoBtn.textContent = onlyFree ? '⚡ 隠し形態 解放!!' : (canBuyAny ? `⚡ 進化 (${s.evolutionPoints}pt)` : (nextEvos.length === 0 ? '⚡ 進化MAX' : `⚡ 進化 (${s.evolutionPoints}pt)`));
+      evoBtn.textContent = onlyFree ? tx('⚡ 隠し形態 解放!!') : (nextEvos.length === 0 && !canBuyAny ? tx('⚡ 進化完了') : tx('⚡ 進化（{0}ポイント）', s.evolutionPoints));
 
       // Trigger Forced 1st Evolution Tutorial the first time player earns Evolution PT!
       if (canBuyAny && !this.hasCompletedFirstEvo && !this.forcedEvoTutorial && this.mode === 'PLAYING' && this.interludeTimer <= 0) {
@@ -8207,7 +8555,7 @@
       this.tickerX -= dt * 115;
       if (this.tickerX < -ticker.offsetWidth - 40) {
         const list = NEWS_BY_PHASE[s.phase];
-        ticker.textContent = `⚡ ${list[Math.floor(Math.random() * list.length)]} ⚡`;
+        ticker.textContent = `⚡ ${tx(list[Math.floor(Math.random() * list.length)])} ⚡`;
         this.tickerX = window.innerWidth + 20;
       }
       ticker.style.transform = `translateX(${this.tickerX}px)`;
@@ -8223,6 +8571,10 @@
       this.fxDpr = dpr;
       this.fxCanvas.width = Math.round(w * dpr);
       this.fxCanvas.height = Math.round(h * dpr);
+      // PCでは、画面の大きさ（1280×760を基準）に合わせて表示を1〜2倍に拡大する。スマホは今のまま
+      this.uiScale = TOUCH_UI ? 1 : Math.max(1, Math.min(2, Math.min(w / 1280, h / 760)));
+      document.body.classList.toggle('pc-ui', !TOUCH_UI);
+      document.documentElement.style.setProperty('--ui', this.uiScale.toFixed(3));
     }
   }
 
