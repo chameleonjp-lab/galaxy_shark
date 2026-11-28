@@ -27,7 +27,7 @@ jobs:
       - name: Prepare site
         run: |
           install -Dm644 index.html _site/index.html
-          install -Dm644 -t _site/vendor vendor/three.min.js vendor/three.LICENSE
+          install -Dm644 -t _site/vendor vendor/three.min.js vendor/three.LICENSE vendor/fonts.LICENSE
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
