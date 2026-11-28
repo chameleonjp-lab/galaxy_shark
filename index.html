@@ -103,8 +103,8 @@
           var tr = api.t(key);
           if (tr !== key) node.data = node.data.replace(key, tr);
         }
-        var attrs = ['title', 'aria-label'];
-        var withAttr = root.querySelectorAll('[title], [aria-label]');
+        var attrs = ['title', 'aria-label', 'placeholder'];
+        var withAttr = root.querySelectorAll('[title], [aria-label], [placeholder]');
         for (var c = 0; c < withAttr.length; c++) {
           for (var d = 0; d < attrs.length; d++) {
             var v = withAttr[c].getAttribute(attrs[d]);
@@ -1032,19 +1032,22 @@
   .share-x-btn:active { transform: skewX(-8deg) translate(2px, 2px); box-shadow: 2px 2px 0 #FF1744; }
   .result-actions .share-x-btn { border-color: #050508; box-shadow: 4px 4px 0 #FF1744; }
   .cover-center-actions {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
   }
   .home-player { width: min(320px, 84vw); color: #fff; font: 700 12px/1.35 sans-serif; }
-  .home-player label, #home-play-count { text-shadow: 1px 2px 2px #050508; }
+  #home-play-count { text-shadow: 1px 2px 2px #050508; }
   .home-player input {
     display: block; width: 100%; margin: 3px 0;
-    padding: 6px 10px; color: #050508; background: #FFFDF0;
+    padding: 6px 10px; color: #050508; background: #fff;
     border: 3px solid #050508; border-radius: 0; font: 16px/1.25 sans-serif;
     user-select: text; -webkit-user-select: text; -webkit-touch-callout: default;
   }
+  .home-player input::placeholder { color: #666; opacity: 1; }
   .home-player small { display: block; font-size: 12px; }
   #home-play-count { margin: 3px 0 0; }
   .home-share-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
@@ -1442,7 +1445,7 @@
   }
   @media (max-width: 600px) and (orientation: portrait) {
     .cover-logo { font-size: 20vw; }
-    .cover-burst { width: 104vw; }
+    .cover-burst { width: 104vw; aspect-ratio: 2.25; top: 41%; }
   }
   @media (max-width: 480px) {
     .issue-stamp { font-size: 11px; padding: 5px 8px; }
@@ -1482,8 +1485,7 @@
 
     <div class="cover-center-actions">
       <div class="home-player">
-        <label for="player-name">名前（任意）</label>
-        <input id="player-name" type="text" maxlength="40" autocomplete="off" aria-describedby="player-name-hint" />
+        <input id="player-name" type="text" placeholder="名前（任意）" aria-label="名前（任意）" maxlength="40" autocomplete="off" aria-describedby="player-name-hint" />
         <small id="player-name-hint">名前とスコアはランキングに公開されます。空欄でも遊べます。</small>
         <p id="home-play-count" hidden></p>
       </div>
@@ -1852,6 +1854,19 @@
     { id:'boss_milkyway', nameJa:'天の川銀河', phase:5, minStage:15, maxStage:15, category:'ENERGY', realSizeMeters:5e17, hp:2400, damageToShark:10, isHostile:false, damageValueYen:9.99e19, massTons:1.5e42, frenzyGain:100, gimmick:'NONE', color:0xffffff, onomatopoeia:['天の川丸呑み!!!!!'], flavor:'我らが故郷、そしてサメの新たな泳ぎ場。', ai:'BOSS', shape:'boss', isBoss:true }
   ];
   const PREY_MAP = Object.fromEntries(PREY_CATALOG.map(p => [p.id, p]));
+  // 長い海の獲物は、胴の中央に加えて頭と尾を噛めるようにする。
+  // 各組はモデル上の [横, 高さ, 前後, 半径]。軽量表示でも同じ形を使う。
+  const PREY_BITE_ZONES = {
+    rival_shark: [[0, 0, 0.83, 0.28], [0, 0, -1.11, 0.31]],
+    orca: [
+      [0, 0.01, 0.94, 0.36], [0, -0.02, -1.05, 0.29], [0, 0, -1.43, 0.29],
+      [-0.54, 0, -1.49, 0.38], [0.54, 0, -1.49, 0.38],
+    ],
+    whale: [
+      [0, 0.08, 1.12, 0.63], [0, -0.01, -1.14, 0.43], [0, 0, -1.72, 0.38],
+      [-0.74, 0, -2.02, 0.49], [0.74, 0, -2.02, 0.49],
+    ],
+  };
   const EXPLOSIVE_GIMMICKS = new Set(['FUEL_EXPLOSION', 'AERIAL_TANKER_BOOM', 'ASTEROID_CHAIN']);
   // 同時に1つまでしか出さない仕掛け（連鎖で一度に大量に食べすぎないようにする）
   const SINGLE_GIMMICKS = new Set(['POWER_SHOCK', 'DAM_FLOOD', 'HYDROTHERMAL_VENT']);
@@ -7022,6 +7037,7 @@
         alive: true,
         stunTimer: 0,
         hitCd: 0,
+        bumpCd: 0,
         hitFlash: 0,
         shootTimer: 2.2 + Math.random() * 2,
         aiState: 'PATROL',
@@ -7107,6 +7123,7 @@
       const detectR = S * 3.0;
       const suctionMult = evo.suctionRadiusMult;
       const fwdDir = new THREE.Vector3(Math.sin(s.yaw), Math.sin(s.pitch), Math.cos(s.yaw)).normalize();
+      const zoneCenter = new THREE.Vector3();
 
       // 食べられる大きさの境目（体長との比）
       //  - TOUCH_EAT 以下：体が触れるだけで食べられる小さな獲物
@@ -7151,7 +7168,21 @@
         // Continuous swept segment check
         const segDistSq = distPointToSegmentSq(p.pos, this.prevJawPos, jawPos);
         const hitThresh = headR + p.internalRadius;
-        const jawHit = segDistSq <= hitThresh * hitThresh;
+        let jawHit = segDistSq <= hitThresh * hitThresh;
+        let biteImpact = p.pos;
+        const biteZones = PREY_BITE_ZONES[p.cfg.id];
+        if (!jawHit && isBiteActive && biteZones) {
+          const modelScale = p.mesh.scale.x;
+          for (const [x, y, z, radius] of biteZones) {
+            zoneCenter.set(x, y, z).multiplyScalar(modelScale).applyQuaternion(p.mesh.quaternion).add(p.pos);
+            const reach = headR + radius * modelScale;
+            if (distPointToSegmentSq(zoneCenter, this.prevJawPos, jawPos) <= reach * reach) {
+              jawHit = true;
+              biteImpact = zoneCenter;
+              break;
+            }
+          }
+        }
         const bodyHit = canTouchEat && (s.pos.distanceTo(p.pos) < bodyR + p.internalRadius);
 
         if (!jawHit && !bodyHit) continue;
@@ -7181,8 +7212,8 @@
 
           this.sharkRig.triggerBite(true);
           this.audio.playGolden(false);
-          this.particles.emitBurst(p.pos, 32, 0xffe600, S * 0.85, false, 2);
-          this.onomatopoeia.spawn('返り討ち!!', p.pos, S * 1.45, 'gold', true);
+          this.particles.emitBurst(biteImpact, 32, 0xffe600, S * 0.85, false, 2);
+          this.onomatopoeia.spawn('返り討ち!!', biteImpact, S * 1.45, 'gold', true);
           this.requestHitstop(0.06);
           this.triggerShake(0.24, 0.52);
 
@@ -7205,14 +7236,20 @@
 
           this.sharkRig.triggerBite(true);
           this.audio.playBite(s.phase, this.stats.comboCount, p.cfg.category, sizeRatio);
-          this.particles.emitBurst(p.pos, 16, 0xffe600, S * 0.45, false, -5);
-          this.onomatopoeia.spawn('会心の一噛み!!', p.pos, S * 0.85, 'gold');
+          this.particles.emitBurst(biteImpact, 16, 0xffe600, S * 0.45, false, -5);
+          this.onomatopoeia.spawn('会心の一噛み!!', biteImpact, S * 0.85, 'gold');
           this.requestHitstop(0.03);
           this.triggerShake(0.14, 0.26);
           if (p.hp <= 0) this.eatPrey(p);
         } else if (jawHit) {
           // 噛まずに大きな獲物へぶつかった：はね返される（攻撃中や格上の敵ならダメージ）
-          p.hitCd = 0.45;
+          if (biteZones) {
+            // 接触直後に入力した噛みつきまで待たせない。
+            if (p.bumpCd > 0) continue;
+            p.bumpCd = 0.45;
+          } else {
+            p.hitCd = 0.45;
+          }
           const push = s.pos.clone().sub(p.pos);
           push.y = s.phase === 2 ? 0 : push.y;
           if (push.lengthSq() < 1e-4) push.set(-Math.sin(s.yaw), 0, -Math.cos(s.yaw));
@@ -8033,6 +8070,7 @@
         }
 
         if (p.hitCd > 0) p.hitCd = Math.max(0, p.hitCd - dt);
+        if (p.bumpCd > 0) p.bumpCd = Math.max(0, p.bumpCd - dt);
         if (p.hitFlash > 0) p.hitFlash = Math.max(0, p.hitFlash - dt);
         const hitPulse = p.hitFlash > 0 ? Math.sin(p.hitFlash * 60) * 0.14 : 0;
         const telePulse = (p.aiState === 'TELEGRAPH') ? Math.sin(performance.now() * 0.062) * 0.16 : 0;
