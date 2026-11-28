@@ -1,0 +1,54 @@
+{
+  "schema_version": "chameleonjp-ranking-manifest-v1",
+  "game_id": "galaxy_shark",
+  "title": "ギャラクシーシャーク",
+  "description": "獲物を食べてサメを育て、海から宇宙へ。最後は銀河を丸のみする3Dアクション。",
+  "share_text": "ギャラクシーシャーク\n獲物を食べてサメを育て、海から宇宙へ。最後は銀河を丸のみする3Dアクション。\n#ギャラクシーシャーク\nhttps://chameleonjp-lab.github.io/galaxy_shark/",
+  "canonical_url": "https://chameleonjp-lab.github.io/galaxy_shark/",
+  "release_date": "2026-11-28",
+  "client_version": "galaxy-shark-20261128-01",
+  "submission_mode": "shared",
+  "lab": {
+    "representative_slug": "galaxy_shark"
+  },
+  "player_name": {
+    "required_before_start": false,
+    "required_for_ranking": true,
+    "min_length": 1,
+    "max_length": 20,
+    "storage_key": "gs_ranking_name_v1"
+  },
+  "play_count": {
+    "count_at": "start",
+    "rpc": "lab_record_play_start_v1",
+    "idempotency": true
+  },
+  "submission": {
+    "rpc": "submit_score_idempotent_v1",
+    "automatic": true,
+    "idempotency": true,
+    "timeout_ms": 8000
+  },
+  "ranking_entries": [
+    {
+      "mode_id": "main",
+      "game_slug": "galaxy_shark",
+      "title": "ギャラクシーシャーク",
+      "display_order": 68,
+      "top_ranking_type": "best",
+      "score_order": "desc",
+      "score_unit": "点",
+      "score_scale": 1,
+      "score_decimals": 0,
+      "score_label": "スコア",
+      "first_score_label": "初回スコア",
+      "best_score_label": "自己ベスト",
+      "score_min": 0,
+      "score_max": 2147483647,
+      "ranked_results": [
+        "clear",
+        "game_over"
+      ]
+    }
+  ]
+}
